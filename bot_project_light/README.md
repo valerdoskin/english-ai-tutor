@@ -71,6 +71,48 @@ pip install --user -r requirements.txt
 - API: `https://valerdos.pythonanywhere.com/api/profile?user_id=123`
 - Отправьте боту `/start` в Telegram → нажмите кнопку "🚀 Open Learning App".
 
+## 🚀 Деплой на Render (бесплатный, поддерживает LLM API)
+
+> ⚠️ **PythonAnywhere блокирует LLM API** (Groq, DeepSeek и др.), поэтому для полноценной работы ИИ-функций используйте Render.
+
+### 1. Подготовить код
+Загрузите проект на GitHub (см. ниже). В репозитории уже есть `Dockerfile` и `render.yaml`.
+
+### 2. Создать аккаунт на Render
+Зайдите на [render.com](https://render.com) → **Sign up** (можно через GitHub).
+
+### 3. Создать Web Service
+- **New** → **Web Service** → подключите ваш GitHub-репозиторий
+- Render автоматически увидит `render.yaml` и предложит настройки
+- Выберите план **Free**
+
+### 4. Заполнить переменные окружения
+В разделе **Environment** укажите:
+- `BOT_TOKEN` — токен бота от @BotFather
+- `WEBHOOK_DOMAIN` — адрес вашего сервиса на Render (например `english-ai-tutor.onrender.com`)
+- `GROQ_API_KEY` — ключ от [console.groq.com](https://console.groq.com/keys) (бесплатно)
+- Остальные ключи (DeepSeek, HF, Replicate) — по желанию
+
+### 5. Deploy
+Нажмите **Deploy**. Render соберёт Docker-образ и запустит приложение.
+
+### 6. Проверить
+- Health: `https://ВАШ-СЕРВИС.onrender.com/health`
+- Web App: `https://ВАШ-СЕРВИС.onrender.com/webapp`
+- Отправьте боту `/start` → нажмите кнопку "🚀 Open Learning App".
+
+> 💡 **Важно:** на бесплатном плане Render сервис "засыпает" после 15 минут без запросов и просыпается при первом обращении (занимает ~30 сек). Для бота это нормально — Telegram будет ретраить.
+
+## 📦 Размещение кода на GitHub
+
+```bash
+cd bot_project_light
+git remote add origin https://github.com/ВАШ_ЛОГИН/НАЗВАНИЕ_РЕПО.git
+git push -u origin master
+```
+
+> ⚠️ **Безопасность:** `.env` с ключами добавлен в `.gitignore` и **не** попадёт в git. На хостинге ключи задаются через переменные окружения (Environment), а не через `.env`.
+
 ## 🔧 Локальный запуск
 ```bash
 pip install -r requirements.txt

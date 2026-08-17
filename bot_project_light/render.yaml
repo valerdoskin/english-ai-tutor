@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: english-ai-tutor
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: WEBHOOK_DOMAIN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.1-8b-instant
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: DEEPSEEK_MODEL
+        value: deepseek-chat
+      - key: HF_TOKEN
+        sync: false
+      - key: HF_WHISPER_MODEL
+        value: openai/whisper-large-v3
+      - key: REPLICATE_API_KEY
+        sync: false
