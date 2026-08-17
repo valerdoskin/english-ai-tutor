@@ -1,0 +1,25 @@
+# Secrets
+.env
+
+# Database
+*.db
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual env
+venv/
+.venv/
+
+# Generated audio
+static/audio/*.mp3
+
+# IDE / editor
+.vscode/
+
+# Browser screenshots
+.browser_screenshots/
+
+# Old project folder (only contains ignored files now)
+bot_project_light/
