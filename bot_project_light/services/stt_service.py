@@ -1,5 +1,4 @@
 import aiohttp
-import json
 import base64
 import logging
 from config import HF_TOKEN, HF_WHISPER_MODEL, REPLICATE_API_KEY

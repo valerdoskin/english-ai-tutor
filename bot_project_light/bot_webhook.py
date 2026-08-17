@@ -2,7 +2,6 @@ import sys
 import os
 import logging
 import asyncio
-import threading
 
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 try:
@@ -15,7 +14,7 @@ from flask import Flask, request, jsonify
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-from config import BOT_TOKEN, DB_PATH, WEBHOOK_DOMAIN
+from config import BOT_TOKEN, WEBHOOK_DOMAIN
 from database import init_db
 
 logging.basicConfig(
@@ -31,77 +30,18 @@ app = Flask(__name__)
 init_db()
 logger.info("Database initialized")
 
-# Создаём Telegram Application (async)
-application = Application.builder().token(BOT_TOKEN).build()
-
-# === Постоянный event loop для всего приложения ===
-# python-telegram-bot использует httpx, который привязан к конкретному event loop.
-# Если использовать asyncio.run() для каждого запроса, event loop закрывается
-# и HTTP-клиент становится недействительным. Поэтому создаём один постоянный
-# event loop в отдельном потоке и используем его для всех webhook-запросов.
-_loop = None
-_loop_thread = None
-_app_initialized = False
-
-
-def _run_loop():
-    """Создаёт и запускает event loop в отдельном потоке."""
-    global _loop
-    _loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(_loop)
-    _loop.run_forever()
-
-
-def _init_app_sync():
-    """Инициализирует Application в постоянном event loop."""
-    global _app_initialized
-    if _app_initialized:
-        return
-    try:
-        logger.error("INIT: Initializing Telegram Application...")
-        # Используем run_coroutine_threadsafe, т.к. event loop уже запущен
-        future = asyncio.run_coroutine_threadsafe(application.initialize(), _loop)
-        future.result(timeout=30)
-        logger.error("INIT: Application.initialize() done")
-        future = asyncio.run_coroutine_threadsafe(application.start(), _loop)
-        future.result(timeout=30)
-        logger.error("INIT: Application.start() done")
-        _app_initialized = True
-        logger.error("INIT: ✅ Telegram Application initialized")
-    except Exception as e:
-        logger.error(f"INIT: Failed to initialize Application: {e}", exc_info=True)
-
-
-# Запускаем event loop в отдельном потоке
-_loop_thread = threading.Thread(target=_run_loop, daemon=True)
-_loop_thread.start()
-
-# Ждём, пока event loop создастся в потоке
-import time
-while _loop is None:
-    time.sleep(0.05)
-
-# Инициализируем Application
-_init_app_sync()
-
-
 # === Хэндлеры команд ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.error("START: handler called")
-    try:
-        await update.message.reply_text(
-            "🎯 *English AI Tutor*\n\n"
-            "I'm your personal English teacher! Here's what I can do:\n\n"
-            "📝 *Chat* — Send me a message, I'll correct your English\n"
-            "🎤 *Voice* — Record your speech, I'll transcribe and correct\n"
-            "📚 *Lessons* — Grammar exercises\n"
-            "📖 *Words* — Vocabulary builder\n\n"
-            "Just start typing! Try it now 👇",
-            parse_mode="Markdown",
-        )
-        logger.error("START: reply_text done")
-    except Exception as e:
-        logger.error(f"START: reply_text error: {e}", exc_info=True)
+    await update.message.reply_text(
+        "🎯 *English AI Tutor*\n\n"
+        "I'm your personal English teacher! Here's what I can do:\n\n"
+        "📝 *Chat* — Send me a message, I'll correct your English\n"
+        "🎤 *Voice* — Record your speech, I'll transcribe and correct\n"
+        "📚 *Lessons* — Grammar exercises\n"
+        "📖 *Words* — Vocabulary builder\n\n"
+        "Just start typing! Try it now 👇",
+        parse_mode="Markdown",
+    )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -299,18 +239,15 @@ Speak at {level} level. Be encouraging."""
 
 
 # === Регистрация хэндлеров ===
-def register_handlers():
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("level", level_command))
-    application.add_handler(CommandHandler("setlevel", setlevel_command))
-    application.add_handler(CommandHandler("stats", stats_command))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-    application.add_handler(MessageHandler(filters.VOICE, handle_voice))
+def register_handlers(app):
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("level", level_command))
+    app.add_handler(CommandHandler("setlevel", setlevel_command))
+    app.add_handler(CommandHandler("stats", stats_command))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    app.add_handler(MessageHandler(filters.VOICE, handle_voice))
     logger.info("✅ Handlers registered")
-
-
-register_handlers()
 
 
 # === Flask webhook endpoint ===
@@ -318,18 +255,21 @@ register_handlers()
 def webhook():
     """Обрабатывает входящие webhook-запросы от Telegram."""
     try:
-        update = Update.de_json(request.get_json(force=True), application.bot)
-        # Тест: проверяем, работает ли event loop
-        async def _test_loop():
-            return "loop_ok"
-        test_future = asyncio.run_coroutine_threadsafe(_test_loop(), _loop)
-        test_result = test_future.result(timeout=5)
-        logger.error(f"WEBHOOK: event loop test result = {test_result}")
-        # Используем постоянный event loop вместо asyncio.run()
-        future = asyncio.run_coroutine_threadsafe(
-            application.process_update(update), _loop
-        )
-        future.result(timeout=60)
+        data = request.get_json(force=True)
+
+        async def _process():
+            # Создаём Application заново в этом event loop, чтобы httpx-клиент
+            # был привязан к текущему loop (asyncio.run создаёт новый loop).
+            app = Application.builder().token(BOT_TOKEN).build()
+            register_handlers(app)
+            await app.initialize()
+            try:
+                update = Update.de_json(data, app.bot)
+                await app.process_update(update)
+            finally:
+                await app.shutdown()
+
+        asyncio.run(_process())
         return "OK", 200
     except Exception as e:
         logger.exception("Webhook processing error")
@@ -487,16 +427,20 @@ def api_leaderboard():
 
 
 def set_webhook():
-    """Устанавливает webhook на Telegram, используя постоянный event loop."""
+    """Устанавливает webhook на Telegram."""
     if not BOT_TOKEN:
         logger.error("BOT_TOKEN is empty — cannot set webhook")
         return
     webhook_url = f"https://{WEBHOOK_DOMAIN}/{BOT_TOKEN}"
     try:
-        future = asyncio.run_coroutine_threadsafe(
-            application.bot.set_webhook(webhook_url), _loop
-        )
-        future.result(timeout=30)
+        async def _set():
+            app = Application.builder().token(BOT_TOKEN).build()
+            await app.initialize()
+            try:
+                await app.bot.set_webhook(webhook_url)
+            finally:
+                await app.shutdown()
+        asyncio.run(_set())
         logger.info(f"✅ Webhook set to {webhook_url}")
     except Exception as e:
         logger.error(f"Failed to set webhook: {e}")
