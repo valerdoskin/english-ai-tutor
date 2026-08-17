@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>English AI Tutor</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-dark: #0284c7;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --danger: #f87171;
+            --border: #334155;
+            --radius: 16px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+            padding: 24px 20px;
+            text-align: center;
+            border-radius: 0 0 24px 24px;
+        }
+        .header h1 { font-size: 22px; font-weight: 700; }
+        .header p { font-size: 14px; opacity: 0.9; margin-top: 4px; }
+        .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+        .card h3 { font-size: 16px; margin-bottom: 8px; }
+        .card p { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .btn-primary { background: var(--accent); color: #0f172a; }
+        .btn-primary:hover { background: var(--accent-dark); color: white; }
+        .btn-secondary { background: var(--bg-card-hover); color: var(--text); }
+        .btn-secondary:hover { background: var(--border); }
+        .btn-success { background: var(--success); color: #0f172a; }
+        .btn-danger { background: var(--danger); color: #0f172a; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .level-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            background: var(--accent);
+            color: #0f172a;
+        }
+        .level-badge.muted { background: var(--bg-card-hover); color: var(--text-muted); }
+        .nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+            padding-bottom: calc(8px + env(safe-area-inset-bottom));
+        }
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            padding: 8px 4px;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 11px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .nav-item.active { color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+        .nav-item .icon { font-size: 22px; display: block; margin-bottom: 2px; }
+        .hidden { display: none; }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 15px;
+            margin-bottom: 12px;
+        }
+        textarea { min-height: 80px; resize: vertical; }
+        .option {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 15px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            text-align: left;
+            transition: all 0.2s;
+        }
+        .option:hover { background: var(--bg-card-hover); }
+        .option.selected { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+        .option.correct { border-color: var(--success); background: rgba(74, 222, 128, 0.1); }
+        .option.wrong { border-color: var(--danger); background: rgba(248, 113, 113, 0.1); }
+        .progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        .result-box {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .correction { color: var(--success); font-weight: 600; }
+        .error-text { color: var(--danger); }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-right: 4px;
+        }
+        .tag.grammar { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
+        .tag.vocab { background: rgba(251, 191, 36, 0.2); color: var(--warning); }
+        .tag.pron { background: rgba(74, 222, 128, 0.2); color: var(--success); }
+        .audio-player {
+            width: 100%;
+            margin: 12px 0;
+        }
+        .mic-btn {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: none;
+            background: var(--accent);
+            color: #0f172a;
+            font-size: 28px;
+            cursor: pointer;
+            margin: 16px auto;
+            display: block;
+            transition: all 0.2s;
+        }
+        .mic-btn.recording { background: var(--danger); animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        .chat-bubble {
+            padding: 12px 16px;
+            border-radius: 16px;
+            margin-bottom: 8px;
+            max-width: 85%;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .chat-user { background: var(--accent); color: #0f172a; margin-left: auto; }
+        .chat-bot { background: var(--bg-card); border: 1px solid var(--border); }
+        .chat-area { display: flex; flex-direction: column; }
+        .toast {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: none;
+        }
+        .toast.show { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; } }
+        .section-title { font-size: 18px; font-weight: 700; margin: 16px 0 12px; }
+        .subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 English AI Tutor</h1>
+        <p id="userLevel">Your personal English teacher</p>
+    </div>
+
+    <div class="container" id="app">
+        <!-- Главная -->
+        <div id="view-home" class="view">
+            <div class="card">
+                <h3>👋 Welcome!</h3>
+                <p>Choose what you'd like to practice today.</p>
+            </div>
+            <button class="btn btn-primary" onclick="showView('test')">📝 Take Level Test</button>
+            <button class="btn btn-secondary" onclick="showView('lessons')">📚 AI Lessons</button>
+            <button class="btn btn-secondary" onclick="showView('podcasts')">🎧 Podcasts</button>
+            <button class="btn btn-secondary" onclick="showView('dialogue')">🎤 Voice Dialogue</button>
+        </div>
+
+        <!-- Тест уровня -->
+        <div id="view-test" class="view hidden">
+            <div class="section-title">📝 Level Test</div>
+            <div class="subtitle">Answer the questions to determine your English level (CEFR A1-C2)</div>
+            <div id="test-content"></div>
+        </div>
+
+        <!-- Уроки -->
+        <div id="view-lessons" class="view hidden">
+            <div class="section-title">📚 AI Lessons</div>
+            <div class="subtitle">Personalized lessons based on your level</div>
+            <div id="lessons-content"></div>
+        </div>
+
+        <!-- Подкасты -->
+        <div id="view-podcasts" class="view hidden">
+            <div class="section-title">🎧 Podcasts</div>
+            <div class="subtitle">AI-generated audio podcasts on topics you love</div>
+            <div id="podcasts-content"></div>
+        </div>
+
+        <!-- Аудио диалог -->
+        <div id="view-dialogue" class="view hidden">
+            <div class="section-title">🎤 Voice Dialogue</div>
+            <div class="subtitle">Speak and get corrections in real-time</div>
+            <div id="dialogue-content"></div>
+        </div>
+    </div>
+
+    <!-- Нижняя навигация -->
+    <div class="nav">
+        <div class="nav-item active" data-view="home" onclick="showView('home')">
+            <span class="icon">🏠</span>Home
+        </div>
+        <div class="nav-item" data-view="test" onclick="showView('test')">
+            <span class="icon">📝</span>Test
+        </div>
+        <div class="nav-item" data-view="lessons" onclick="showView('lessons')">
+            <span class="icon">📚</span>Lessons
+        </div>
+        <div class="nav-item" data-view="podcasts" onclick="showView('podcasts')">
+            <span class="icon">🎧</span>Podcasts
+        </div>
+        <div class="nav-item" data-view="dialogue" onclick="showView('dialogue')">
+            <span class="icon">🎤</span>Voice
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="/static/webapp.js"></script>
+</body>
+</html>

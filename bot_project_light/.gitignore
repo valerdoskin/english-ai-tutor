@@ -11,3 +11,6 @@ __pycache__/
 # Virtual env
 venv/
 .venv/
+
+# Generated audio
+static/audio/*.mp3

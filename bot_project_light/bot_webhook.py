@@ -10,8 +10,8 @@ try:
 except Exception:
     pass
 
-from flask import Flask, request, jsonify
-from telegram import Update
+from flask import Flask, request, jsonify, render_template
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 from config import BOT_TOKEN, WEBHOOK_DOMAIN
@@ -32,15 +32,20 @@ logger.info("Database initialized")
 
 # === Хэндлеры команд ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    webapp_url = f"https://{WEBHOOK_DOMAIN}/webapp"
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🚀 Open Learning App", web_app=WebAppInfo(url=webapp_url))],
+    ])
     await update.message.reply_text(
         "🎯 *English AI Tutor*\n\n"
         "I'm your personal English teacher! Here's what I can do:\n\n"
-        "📝 *Chat* — Send me a message, I'll correct your English\n"
-        "🎤 *Voice* — Record your speech, I'll transcribe and correct\n"
-        "📚 *Lessons* — Grammar exercises\n"
-        "📖 *Words* — Vocabulary builder\n\n"
-        "Just start typing! Try it now 👇",
+        "📝 *Level Test* — Determine your CEFR level (A1-C2)\n"
+        "📚 *AI Lessons* — Personalized lessons for your level\n"
+        "🎧 *Podcasts* — Audio podcasts on topics you love\n"
+        "🎤 *Voice Dialogue* — Speak and get corrections\n\n"
+        "Tap the button below to open the full learning app 👇",
         parse_mode="Markdown",
+        reply_markup=keyboard,
     )
 
 
@@ -291,6 +296,12 @@ def health():
     return jsonify({"status": "ok", "bot": "English AI Tutor"})
 
 
+@app.route("/webapp", methods=["GET"])
+def webapp():
+    """Telegram Web App интерфейс."""
+    return render_template("webapp.html")
+
+
 @app.route("/api/profile", methods=["GET"])
 def api_profile():
     """Webapp API endpoint."""
@@ -424,6 +435,113 @@ def api_leaderboard():
     conn.close()
     leaders = [{"name": f"User {r['user_id']}", "level": "A2", "score": r["xp"] or 0} for r in rows]
     return jsonify({"ok": True, "leaders": leaders})
+
+
+# === Web App API endpoints ===
+@app.route("/api/test/start", methods=["GET"])
+def api_test_start():
+    """Начинает тест уровня."""
+    from services.tutor_service import generate_test_questions
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"error": "user_id required"}), 400
+    questions = generate_test_questions(user_id)
+    # Убираем правильные ответы из вопросов, отправляемых клиенту
+    client_questions = []
+    for q in questions:
+        client_questions.append({
+            "question": q["question"],
+            "options": q["options"],
+            "level": q.get("level", "A1"),
+        })
+    return jsonify({
+        "questions": client_questions,
+        "current": 0,
+        "total": len(client_questions),
+    })
+
+
+@app.route("/api/test/submit", methods=["POST"])
+def api_test_submit():
+    """Оценивает тест и определяет уровень."""
+    from services.tutor_service import evaluate_test
+    from database import save_user_data
+    data = request.json
+    user_id = data.get("user_id")
+    questions = data.get("answers", [])
+    if not user_id or not questions:
+        return jsonify({"error": "Missing data"}), 400
+    result = evaluate_test(questions)
+    # Сохраняем уровень пользователя
+    save_user_data(user_id, level=result["level"])
+    return jsonify(result)
+
+
+@app.route("/api/lesson/generate", methods=["POST"])
+def api_lesson_generate():
+    """Генерирует урок по теме и уровню."""
+    from services.tutor_service import generate_lesson
+    from database import get_user_data
+    data = request.json
+    user_id = data.get("user_id")
+    topic = data.get("topic", "")
+    if not user_id or not topic:
+        return jsonify({"error": "Missing data"}), 400
+    level, _, _ = get_user_data(user_id)
+    if not level:
+        level = "A2"
+    lesson = generate_lesson(user_id, level, topic)
+    return jsonify(lesson)
+
+
+@app.route("/api/podcast/generate", methods=["POST"])
+def api_podcast_generate():
+    """Генерирует подкаст."""
+    from services.tutor_service import generate_podcast_script
+    from services.tts_service import text_to_speech
+    from database import get_user_data
+    data = request.json
+    user_id = data.get("user_id")
+    topic = data.get("topic", "")
+    if not user_id or not topic:
+        return jsonify({"error": "Missing data"}), 400
+    level, _, _ = get_user_data(user_id)
+    if not level:
+        level = "A2"
+    script = generate_podcast_script(user_id, level, topic)
+    # Генерируем аудио
+    audio_url = text_to_speech(script.get("transcript", ""))
+    script["audio_url"] = audio_url
+    return jsonify(script)
+
+
+@app.route("/api/dialogue/voice", methods=["POST"])
+def api_dialogue_voice():
+    """Обрабатывает голосовое сообщение в диалоге."""
+    from services.stt_service import transcribe_audio
+    from services.tutor_service import generate_dialogue_reply
+    from services.tts_service import text_to_speech
+    from database import get_user_data
+    user_id = request.form.get("user_id", type=int)
+    audio_file = request.files.get("audio")
+    if not user_id or not audio_file:
+        return jsonify({"error": "Missing data"}), 400
+    # Читаем аудио как байты
+    audio_bytes = audio_file.read()
+    # Распознаём речь (асинхронная функция)
+    transcript = asyncio.run(transcribe_audio(audio_bytes))
+    if not transcript or transcript.startswith("❌"):
+        return jsonify({"error": "Speech recognition failed. Please try again."}), 500
+    level, _, _ = get_user_data(user_id)
+    if not level:
+        level = "A2"
+    # Генерируем ответ
+    result = generate_dialogue_reply(user_id, level, transcript)
+    result["transcript"] = transcript
+    # Генерируем аудио ответ
+    audio_url = text_to_speech(result.get("reply", ""))
+    result["audio_url"] = audio_url
+    return jsonify(result)
 
 
 def set_webhook():

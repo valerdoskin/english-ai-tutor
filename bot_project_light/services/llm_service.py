@@ -1,13 +1,16 @@
 import aiohttp
-from config import DEEPSEEK_API_KEY, DEEPSEEK_MODEL, HF_TOKEN, GROQ_API_KEY, GROQ_MODEL
+from config import DEEPSEEK_API_KEY, DEEPSEEK_MODEL, HF_TOKEN, GROQ_API_KEY, GROQ_MODEL, REPLICATE_API_KEY
 
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 HF_LLM_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+REPLICATE_LLM_URL = "https://api.replicate.com/v1/models/meta/meta-llama-3-70b-instruct/predictions"
 
 
 async def call_llm(messages, system_prompt=None):
     """Вызов LLM: пробует Groq, затем DeepSeek, затем HuggingFace"""
+    import logging
+    logger = logging.getLogger(__name__)
     full_messages = []
     if system_prompt:
         full_messages.append({"role": "system", "content": system_prompt})
@@ -16,19 +19,28 @@ async def call_llm(messages, system_prompt=None):
     # 1. Groq (бесплатный, быстрый)
     if GROQ_API_KEY:
         result = await _call_groq(full_messages)
+        logger.error(f"GROQ_RESULT: {result[:200]}")
         if result and not result.startswith("❌"):
             return result
 
     # 2. DeepSeek (fallback)
     if DEEPSEEK_API_KEY:
         result = await _call_deepseek(full_messages)
+        logger.error(f"DEEPSEEK_RESULT: {result[:200]}")
         if result and not result.startswith("❌"):
             return result
 
     # 3. HuggingFace (fallback)
     if HF_TOKEN:
         result = await _call_hf_llm(full_messages)
-        if result:
+        if result and not result.startswith("❌") and not result.startswith("⏳"):
+            return result
+
+    # 4. Replicate (fallback)
+    if REPLICATE_API_KEY:
+        result = await _call_replicate_llm(full_messages)
+        logger.error(f"REPLICATE_RESULT: {result[:200]}")
+        if result and not result.startswith("❌"):
             return result
 
     return "❌ All LLM services unavailable. Configure GROQ_API_KEY or DEEPSEEK_API_KEY."
@@ -119,6 +131,43 @@ async def _call_hf_llm(messages):
     except Exception as e:
         logger.error(f"HF LLM unexpected error: {e}")
         return f"❌ HF LLM error: {e}"
+
+
+async def _call_replicate_llm(messages):
+    """Вызов Replicate LLM (meta-llama-3-70b-instruct) как fallback."""
+    import logging
+    logger = logging.getLogger(__name__)
+    headers = {
+        "Authorization": f"Bearer {REPLICATE_API_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "wait",
+    }
+    prompt = _messages_to_prompt(messages)
+    payload = {
+        "input": {
+            "prompt": prompt,
+            "max_tokens": 500,
+            "temperature": 0.7,
+        }
+    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(REPLICATE_LLM_URL, headers=headers, json=payload, timeout=60) as resp:
+                if resp.status == 201:
+                    data = await resp.json()
+                    output = data.get("output")
+                    if isinstance(output, list):
+                        return "".join(output)
+                    return str(output)
+                else:
+                    text = await resp.text()
+                    return f"❌ Replicate error ({resp.status}): {text[:200]}"
+    except aiohttp.ClientError as e:
+        logger.error(f"Replicate LLM network error: {e}")
+        return "❌ Replicate LLM: network error"
+    except Exception as e:
+        logger.error(f"Replicate LLM unexpected error: {e}")
+        return f"❌ Replicate LLM error: {e}"
 
 
 def _messages_to_prompt(messages):
