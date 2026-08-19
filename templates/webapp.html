@@ -102,6 +102,34 @@
         .stat-item .value { font-size: 20px; font-weight: 800; color: var(--accent); }
         .stat-item .label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
+        .rank-progress {
+            margin: -8px 16px 16px;
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            position: relative;
+            z-index: 2;
+        }
+        .rank-progress-bar {
+            height: 6px;
+            background: var(--bg);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .rank-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #a78bfa);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+        .rank-progress-text {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            text-align: center;
+        }
+
         .btn {
             display: block;
             width: 100%;
@@ -414,6 +442,10 @@
             <div class="value" id="statLessons">0</div>
             <div class="label">Lessons</div>
         </div>
+    </div>
+    <div class="rank-progress" id="rankProgress" style="display:none">
+        <div class="rank-progress-bar"><div class="rank-progress-fill" id="rankProgressFill" style="width:0%"></div></div>
+        <div class="rank-progress-text" id="rankProgressText"></div>
     </div>
 
     <div class="container" id="app" style="max-width:480px;margin:0 auto;padding:16px">

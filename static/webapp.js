@@ -100,12 +100,25 @@ async function loadStats() {
             userStats = data.stats;
             document.getElementById('statXp').textContent = data.stats.xp || 0;
             document.getElementById('statStreak').textContent = data.stats.streak || 0;
-            document.getElementById('statRank').textContent = data.stats.rank || 'Bronze';
+            document.getElementById('statRank').textContent = (data.stats.rank_icon ? data.stats.rank_icon + ' ' : '') + (data.stats.rank || 'Bronze');
             document.getElementById('statLessons').textContent = data.stats.completed_lessons || 0;
             if (data.stats.level) {
                 userLevel = data.stats.level;
                 document.getElementById('userLevel').textContent = `Level: ${data.stats.level}`;
                 document.getElementById('levelChip').textContent = `Level: ${data.stats.level}`;
+            }
+            // Прогресс до следующего ранга
+            const rp = document.getElementById('rankProgress');
+            if (data.stats.xp_to_next_rank !== undefined && data.stats.xp_to_next_rank > 0) {
+                const xp = data.stats.xp || 0;
+                const toNext = data.stats.xp_to_next_rank;
+                const total = xp + toNext;
+                const pct = total > 0 ? Math.min(100, Math.round((xp / total) * 100)) : 0;
+                document.getElementById('rankProgressFill').style.width = pct + '%';
+                document.getElementById('rankProgressText').textContent = `${xp}/${total} XP to next rank`;
+                rp.style.display = 'block';
+            } else {
+                rp.style.display = 'none';
             }
         }
     } catch (e) {
