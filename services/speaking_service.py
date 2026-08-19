@@ -194,6 +194,153 @@ PICTURE_TOPICS = {
 }
 
 
+# Монологи для продвинутых уровней (B2-C2)
+MONOLOGUE_TOPICS = {
+    "B2": [
+        {
+            "id": "technology_impact",
+            "title": "The Impact of Technology",
+            "description": "Speak for 2-3 minutes about how technology has changed the way we live and work.",
+            "prompt": "Talk about the positive and negative effects of technology on modern life.",
+            "tips": ["Give specific examples", "Discuss both pros and cons", "Conclude with your opinion"],
+        },
+        {
+            "id": "environment",
+            "title": "Environmental Challenges",
+            "description": "Speak for 2-3 minutes about environmental challenges facing the world today.",
+            "prompt": "Describe the main environmental problems and suggest possible solutions.",
+            "tips": ["Use cause and effect language", "Propose realistic solutions", "Use linking words"],
+        },
+        {
+            "id": "career",
+            "title": "Career Choices",
+            "description": "Speak for 2-3 minutes about factors that influence career choices.",
+            "prompt": "Discuss what factors are important when choosing a career.",
+            "tips": ["Compare different factors", "Give personal examples", "Use conditionals"],
+        },
+    ],
+    "C1": [
+        {
+            "id": "globalization",
+            "title": "Globalization",
+            "description": "Speak for 3-4 minutes about the effects of globalization.",
+            "prompt": "Analyze the cultural, economic, and social effects of globalization.",
+            "tips": ["Use academic vocabulary", "Present balanced arguments", "Use hedging language"],
+        },
+        {
+            "id": "education_future",
+            "title": "The Future of Education",
+            "description": "Speak for 3-4 minutes about how education will change in the future.",
+            "prompt": "Predict how technology will transform education in the next 20 years.",
+            "tips": ["Use future tenses", "Make predictions", "Support with evidence"],
+        },
+        {
+            "id": "workplace",
+            "title": "The Changing Workplace",
+            "description": "Speak for 3-4 minutes about how the workplace is changing.",
+            "prompt": "Discuss remote work, automation, and the gig economy.",
+            "tips": ["Use advanced vocabulary", "Discuss implications", "Give your perspective"],
+        },
+    ],
+    "C2": [
+        {
+            "id": "consciousness",
+            "title": "Consciousness and AI",
+            "description": "Speak for 4-5 minutes about the nature of consciousness and artificial intelligence.",
+            "prompt": "Discuss whether machines can ever achieve true consciousness.",
+            "tips": ["Use philosophical vocabulary", "Engage with counterarguments", "Show nuance"],
+        },
+        {
+            "id": "society",
+            "title": "The Future of Society",
+            "description": "Speak for 4-5 minutes about the future of human society.",
+            "prompt": "Analyze the major challenges and opportunities facing humanity.",
+            "tips": ["Use sophisticated language", "Consider multiple perspectives", "Draw conclusions"],
+        },
+        {
+            "id": "language",
+            "title": "The Power of Language",
+            "description": "Speak for 4-5 minutes about how language shapes thought.",
+            "prompt": "Discuss the relationship between language, culture, and identity.",
+            "tips": ["Use abstract vocabulary", "Reference linguistic concepts", "Express complex ideas"],
+        },
+    ],
+}
+
+# TBLT-задачи для продвинутых уровней (B2-C2)
+TBLT_TASKS = {
+    "B2": [
+        {
+            "id": "plan_trip",
+            "title": "Plan a Business Trip",
+            "description": "Plan a 3-day business trip to a foreign country. Decide on flights, hotels, meetings, and budget.",
+            "steps": ["Choose a destination", "Plan the itinerary", "Set a budget", "Present your plan"],
+            "language_focus": "Conditionals, future forms, negotiation language",
+        },
+        {
+            "id": "solve_problem",
+            "title": "Solve a Workplace Problem",
+            "description": "A colleague is underperforming. Discuss the problem and propose a solution.",
+            "steps": ["Identify the problem", "Discuss possible causes", "Propose solutions", "Agree on a plan"],
+            "language_focus": "Problem-solving language, suggestions, agreement/disagreement",
+        },
+        {
+            "id": "organize_event",
+            "title": "Organize a Community Event",
+            "description": "Organize a charity event for your community. Decide on the type, venue, and promotion.",
+            "steps": ["Choose the event type", "Plan the logistics", "Discuss promotion", "Assign roles"],
+            "language_focus": "Planning language, modal verbs, collaborative language",
+        },
+    ],
+    "C1": [
+        {
+            "id": "launch_product",
+            "title": "Launch a New Product",
+            "description": "Develop a launch strategy for a new tech product. Consider market, pricing, and marketing.",
+            "steps": ["Analyze the market", "Set pricing strategy", "Plan marketing", "Present the strategy"],
+            "language_focus": "Persuasive language, market analysis vocabulary, strategic thinking",
+        },
+        {
+            "id": "policy",
+            "title": "Draft a Policy Proposal",
+            "description": "Draft a policy proposal to reduce carbon emissions in your city.",
+            "steps": ["Research the issue", "Propose measures", "Consider costs", "Present the proposal"],
+            "language_focus": "Formal register, cause-effect language, policy vocabulary",
+        },
+        {
+            "id": "negotiate_contract",
+            "title": "Negotiate a Contract",
+            "description": "Negotiate a complex contract with multiple stakeholders.",
+            "steps": ["Identify key terms", "Discuss priorities", "Make concessions", "Reach agreement"],
+            "language_focus": "Negotiation language, diplomatic phrasing, compromise",
+        },
+    ],
+    "C2": [
+        {
+            "id": "global_summit",
+            "title": "Global Summit Resolution",
+            "description": "Draft a resolution for a global summit on climate change.",
+            "steps": ["Identify key issues", "Draft clauses", "Consider objections", "Finalize the resolution"],
+            "language_focus": "Diplomatic language, formal register, nuanced argumentation",
+        },
+        {
+            "id": "research_proposal",
+            "title": "Research Grant Proposal",
+            "description": "Write a research grant proposal for a groundbreaking study.",
+            "steps": ["Define the research question", "Outline methodology", "Justify funding", "Present the proposal"],
+            "language_focus": "Academic language, research vocabulary, persuasive writing",
+        },
+        {
+            "id": "crisis_management",
+            "title": "Crisis Management Plan",
+            "description": "Develop a crisis management plan for a multinational corporation.",
+            "steps": ["Assess the crisis", "Develop response strategy", "Plan communication", "Present the plan"],
+            "language_focus": "Crisis vocabulary, strategic language, leadership communication",
+        },
+    ],
+}
+
+
 def get_role_play_scenarios(level):
     """Возвращает сценарии ролевых игр для уровня."""
     return ROLE_PLAY_SCENARIOS.get(level, ROLE_PLAY_SCENARIOS.get("A1", []))
@@ -202,6 +349,16 @@ def get_role_play_scenarios(level):
 def get_picture_topics(level):
     """Возвращает темы для описания картинок по уровню."""
     return PICTURE_TOPICS.get(level, PICTURE_TOPICS.get("A1", []))
+
+
+def get_monologue_topics(level):
+    """Возвращает темы для монологов по уровню."""
+    return MONOLOGUE_TOPICS.get(level, MONOLOGUE_TOPICS.get("B2", []))
+
+
+def get_tblt_tasks(level):
+    """Возвращает TBLT-задачи для уровня."""
+    return TBLT_TASKS.get(level, TBLT_TASKS.get("B2", []))
 
 
 def generate_dialogue_reply(level, user_text, history=None, scenario=None, silent_period=False):

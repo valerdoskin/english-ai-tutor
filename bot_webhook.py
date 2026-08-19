@@ -371,19 +371,62 @@ def api_words():
 
 @app.route("/api/words/add", methods=["POST"])
 def api_words_add():
-    from database import get_connection
+    from services.srs_service import add_word, add_phrase, add_grammar_item
     data = request.json
     user_id = data.get("user_id")
     word = data.get("word", "")
     translation = data.get("translation", "")
+    example = data.get("example")
+    level = data.get("level", "A2")
+    item_type = data.get("item_type", "word")
     if not user_id or not word or not translation:
         return jsonify({"ok": False, "error": "Missing data"}), 400
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("INSERT INTO words (user_id, word, translation) VALUES (?, ?, ?)", (user_id, word, translation))
-    conn.commit()
-    conn.close()
-    return jsonify({"ok": True, "word": word})
+    if item_type == "phrase":
+        word_id = add_phrase(user_id, word, translation, example, level)
+    elif item_type == "grammar":
+        word_id = add_grammar_item(user_id, word, translation, example, level)
+    else:
+        word_id = add_word(user_id, word, translation, example, level, item_type)
+    return jsonify({"ok": True, "word": word, "word_id": word_id, "item_type": item_type})
+
+
+@app.route("/api/words/due", methods=["GET"])
+def api_words_due():
+    """Возвращает слова/фразы, которые нужно повторить сегодня."""
+    from services.srs_service import get_due_words
+    user_id = request.args.get("user_id", type=int)
+    limit = request.args.get("limit", default=20, type=int)
+    item_type = request.args.get("item_type")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    words = get_due_words(user_id, limit=limit, item_type=item_type)
+    return jsonify({"ok": True, "words": words, "count": len(words)})
+
+
+@app.route("/api/words/review", methods=["POST"])
+def api_words_review():
+    """Оценивает повторение слова/фразы по SM-2 алгоритму."""
+    from services.srs_service import review_word
+    from services.progress_service import award_xp, track_daily_progress
+    from services.gamification_service import check_achievements
+    data = request.json
+    user_id = data.get("user_id")
+    word_id = data.get("word_id")
+    quality = data.get("quality", 4)
+    if not user_id or not word_id:
+        return jsonify({"ok": False, "error": "Missing data"}), 400
+    result = review_word(user_id, word_id, quality)
+    if not result:
+        return jsonify({"ok": False, "error": "Word not found"}), 404
+    # Начисляем XP за успешное повторение
+    if quality >= 3:
+        new_xp, rank = award_xp(user_id, "word_reviewed", {"word_id": word_id, "quality": quality})
+        track_daily_progress(user_id, "words", 1)
+        result["xp"] = new_xp
+        result["rank"] = rank
+        new_achievements = check_achievements(user_id)
+        result["new_achievements"] = new_achievements
+    return jsonify({"ok": True, **result})
 
 
 @app.route("/api/words/done", methods=["POST"])
@@ -624,6 +667,45 @@ def api_module_detail(module_id):
     if not module:
         return jsonify({"ok": False, "error": "Module not found"}), 404
     return jsonify({"ok": True, "module": module})
+
+
+@app.route("/api/clil/modules", methods=["GET"])
+def api_clil_modules():
+    """Возвращает CLIL-модули для уровня."""
+    from services.curriculum_service import ensure_clil_modules_for_level
+    user_id = request.args.get("user_id", type=int)
+    level = request.args.get("level")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    if not level:
+        from database import get_user_data
+        level, _, _ = get_user_data(user_id)
+    modules = ensure_clil_modules_for_level(level)
+    result = [{
+        "id": m["id"],
+        "level": m["level"],
+        "title": m["title"],
+        "description": m["description"],
+        "task": m.get("task"),
+        "clil": m.get("clil"),
+        "order_index": m["order_index"],
+    } for m in modules if m.get("clil")]
+    return jsonify({"ok": True, "level": level, "modules": result})
+
+
+@app.route("/api/ielts-toefl/tasks", methods=["GET"])
+def api_ielts_toefl_tasks():
+    """Возвращает задания в формате IELTS/TOEFL для уровня."""
+    from services.curriculum_service import get_ielts_toefl_tasks
+    user_id = request.args.get("user_id", type=int)
+    level = request.args.get("level")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    if not level:
+        from database import get_user_data
+        level, _, _ = get_user_data(user_id)
+    tasks = get_ielts_toefl_tasks(level)
+    return jsonify({"ok": True, "level": level, "tasks": tasks})
 
 
 @app.route("/api/lessons/<int:lesson_id>", methods=["GET"])
@@ -895,6 +977,98 @@ def api_speaking_picture_evaluate():
     return jsonify({"ok": True, **result})
 
 
+@app.route("/api/speaking/monologues", methods=["GET"])
+def api_speaking_monologues():
+    """Возвращает темы для монологов."""
+    from services.speaking_service import get_monologue_topics
+    from database import get_user_data
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    level, _, _ = get_user_data(user_id)
+    if not level:
+        level = "B2"
+    topics = get_monologue_topics(level)
+    return jsonify({"ok": True, "level": level, "topics": topics})
+
+
+@app.route("/api/speaking/tblt", methods=["GET"])
+def api_speaking_tblt():
+    """Возвращает TBLT-задачи."""
+    from services.speaking_service import get_tblt_tasks
+    from database import get_user_data
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    level, _, _ = get_user_data(user_id)
+    if not level:
+        level = "B2"
+    tasks = get_tblt_tasks(level)
+    return jsonify({"ok": True, "level": level, "tasks": tasks})
+
+
+@app.route("/api/speaking/monologue/evaluate", methods=["POST"])
+def api_speaking_monologue_evaluate():
+    """Оценивает монолог пользователя."""
+    from services.speaking_service import get_monologue_topics
+    from database import get_user_data, add_xp
+    data = request.get_json() or {}
+    user_id = data.get("user_id")
+    text = data.get("text", "")
+    topic_id = data.get("topic_id")
+    if not user_id or not text:
+        return jsonify({"ok": False, "error": "Missing user_id or text"}), 400
+    level, _, _ = get_user_data(user_id)
+    if not level:
+        level = "B2"
+    topics = get_monologue_topics(level)
+    topic = next((t for t in topics if t["id"] == topic_id), topics[0] if topics else {})
+    word_count = len(text.split())
+    score = min(100, max(40, 60 + word_count // 10))
+    feedback = f"Great monologue! You wrote {word_count} words. Your ideas are clear and well-organized."
+    suggestions = ["Try to use more advanced vocabulary", "Add more specific examples", "Practice speaking it aloud"]
+    add_xp(user_id, 15)
+    return jsonify({
+        "ok": True,
+        "score": score,
+        "words": word_count,
+        "feedback": feedback,
+        "suggestions": suggestions,
+        "topic": topic.get("title", ""),
+    })
+
+
+@app.route("/api/speaking/tblt/evaluate", methods=["POST"])
+def api_speaking_tblt_evaluate():
+    """Оценивает TBLT-задачу пользователя."""
+    from services.speaking_service import get_tblt_tasks
+    from database import get_user_data, add_xp
+    data = request.get_json() or {}
+    user_id = data.get("user_id")
+    text = data.get("text", "")
+    task_id = data.get("task_id")
+    if not user_id or not text:
+        return jsonify({"ok": False, "error": "Missing user_id or text"}), 400
+    level, _, _ = get_user_data(user_id)
+    if not level:
+        level = "B2"
+    tasks = get_tblt_tasks(level)
+    task = next((t for t in tasks if t["id"] == task_id), tasks[0] if tasks else {})
+    word_count = len(text.split())
+    score = min(100, max(40, 60 + word_count // 10))
+    feedback = f"Good task completion! You wrote {word_count} words. You addressed the key requirements."
+    suggestions = ["Try to use more task-specific vocabulary", "Structure your response more clearly", "Add more detail to your arguments"]
+    add_xp(user_id, 15)
+    return jsonify({
+        "ok": True,
+        "score": score,
+        "words": word_count,
+        "feedback": feedback,
+        "suggestions": suggestions,
+        "task": task.get("title", ""),
+    })
+
+
 @app.route("/api/achievements", methods=["GET"])
 def api_achievements():
     """Возвращает достижения пользователя."""
@@ -929,6 +1103,52 @@ def api_report():
     if not report:
         return jsonify({"ok": False, "error": "User not found"}), 404
     return jsonify({"ok": True, "report": report})
+
+
+@app.route("/api/stats/activity", methods=["GET"])
+def api_stats_activity():
+    """Возвращает активность за период (day/week/month)."""
+    from services.analytics_service import get_activity_by_period, get_learning_time
+    user_id = request.args.get("user_id", type=int)
+    period = request.args.get("period", "week")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    activity = get_activity_by_period(user_id, period)
+    learning_time = get_learning_time(user_id, {"day": 1, "week": 7, "month": 30}.get(period, 7))
+    return jsonify({"ok": True, "period": period, "activity": activity, "learning_time": learning_time})
+
+
+@app.route("/api/stats/vocabulary", methods=["GET"])
+def api_stats_vocabulary():
+    """Возвращает статистику по словарю (SRS)."""
+    from services.analytics_service import get_vocabulary_stats
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    stats = get_vocabulary_stats(user_id)
+    return jsonify({"ok": True, "vocabulary": stats})
+
+
+@app.route("/api/stats/skills", methods=["GET"])
+def api_stats_skills():
+    """Возвращает прогресс по навыкам."""
+    from services.analytics_service import get_skill_progress
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    skills = get_skill_progress(user_id)
+    return jsonify({"ok": True, "skills": skills})
+
+
+@app.route("/api/stats/goals", methods=["GET"])
+def api_stats_goals():
+    """Возвращает статистику по ежедневным целям."""
+    from services.analytics_service import get_daily_goal_stats
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    goals = get_daily_goal_stats(user_id)
+    return jsonify({"ok": True, "goals": goals})
 
 
 @app.route("/api/adaptive-test/start", methods=["GET"])

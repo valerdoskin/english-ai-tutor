@@ -333,5 +333,221 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertTrue(data["ok"])
 
 
+class TestPhase2Features(unittest.TestCase):
+    """Тесты функций Этапа 2 (B2-C2, SRS, статистика, монологи, TBLT)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import bot_webhook
+        cls.client = bot_webhook.app.test_client()
+        cls.user_id = 99999  # тестовый пользователь
+
+    def test_clil_modules(self):
+        """CLIL-модули доступны для B2, C1, C2."""
+        from services.curriculum_service import ensure_clil_modules_for_level, CLIL_MODULES
+        for level in ["B2", "C1", "C2"]:
+            self.assertIn(level, CLIL_MODULES, f"CLIL-модули для {level} отсутствуют")
+            self.assertGreaterEqual(len(CLIL_MODULES[level]), 3, f"CLIL-модули для {level} < 3")
+            for m in CLIL_MODULES[level]:
+                self.assertIn("title", m)
+                self.assertIn("description", m)
+                self.assertIn("clil", m, f"Модуль {m['title']} не помечен как CLIL")
+            modules = ensure_clil_modules_for_level(level)
+            self.assertGreaterEqual(len(modules), 3, f"CLIL-модули для {level} < 3")
+
+    def test_ielts_toefl_tasks(self):
+        """IELTS/TOEFL задания доступны для B2, C1, C2."""
+        from services.curriculum_service import get_ielts_toefl_tasks
+        for level in ["B2", "C1", "C2"]:
+            tasks = get_ielts_toefl_tasks(level)
+            self.assertGreaterEqual(len(tasks), 2, f"IELTS/TOEFL задания для {level} < 2")
+            for t in tasks:
+                self.assertIn("title", t)
+                self.assertIn("type", t)
+                self.assertIn("description", t)
+
+    def test_srs_add_word(self):
+        """SRS: добавление слова."""
+        from services.srs_service import add_word
+        result = add_word(self.user_id, "test_word", "тестовое слово")
+        self.assertIsInstance(result, int)
+        self.assertGreater(result, 0)
+
+    def test_srs_add_phrase(self):
+        """SRS: добавление фразы."""
+        from services.srs_service import add_phrase
+        result = add_phrase(self.user_id, "take into account", "принимать во внимание")
+        self.assertIsInstance(result, int)
+        self.assertGreater(result, 0)
+
+    def test_srs_add_grammar(self):
+        """SRS: добавление грамматической конструкции."""
+        from services.srs_service import add_grammar_item
+        result = add_grammar_item(self.user_id, "had + past participle", "Past Perfect")
+        self.assertIsInstance(result, int)
+        self.assertGreater(result, 0)
+
+    def test_srs_due_words(self):
+        """SRS: получение слов для повторения."""
+        from services.srs_service import get_due_words
+        due = get_due_words(self.user_id)
+        self.assertIsInstance(due, list)
+
+    def test_srs_review(self):
+        """SRS: повторение слова."""
+        from services.srs_service import add_word, get_due_words, review_word
+        add_word(self.user_id, "review_test", "тест")
+        due = get_due_words(self.user_id)
+        word = next((w for w in due if w.get("word") == "review_test"), None)
+        if word:
+            result = review_word(self.user_id, word["id"], 4)
+            self.assertIsNotNone(result)
+
+    def test_monologue_topics(self):
+        """Монологи доступны для B2, C1, C2."""
+        from services.speaking_service import get_monologue_topics
+        for level in ["B2", "C1", "C2"]:
+            topics = get_monologue_topics(level)
+            self.assertGreaterEqual(len(topics), 2, f"Монологи для {level} < 2")
+            for t in topics:
+                self.assertIn("title", t)
+                self.assertIn("description", t)
+                self.assertIn("prompt", t)
+                self.assertIn("tips", t)
+
+    def test_tblt_tasks(self):
+        """TBLT-задачи доступны для B2, C1, C2."""
+        from services.speaking_service import get_tblt_tasks
+        for level in ["B2", "C1", "C2"]:
+            tasks = get_tblt_tasks(level)
+            self.assertGreaterEqual(len(tasks), 2, f"TBLT-задачи для {level} < 2")
+            for t in tasks:
+                self.assertIn("title", t)
+                self.assertIn("description", t)
+                self.assertIn("steps", t)
+                self.assertIn("language_focus", t)
+
+    def test_analytics_activity(self):
+        """Аналитика: активность за период."""
+        from services.analytics_service import get_activity_by_period
+        result = get_activity_by_period(self.user_id, period="week")
+        self.assertIsInstance(result, list)
+
+    def test_analytics_vocabulary(self):
+        """Аналитика: статистика словаря."""
+        from services.analytics_service import get_vocabulary_stats
+        result = get_vocabulary_stats(self.user_id)
+        self.assertIn("total", result)
+        self.assertIn("words", result)
+        self.assertIn("phrases", result)
+        self.assertIn("grammar", result)
+
+    def test_analytics_skills(self):
+        """Аналитика: прогресс по навыкам."""
+        from services.analytics_service import get_skill_progress
+        result = get_skill_progress(self.user_id)
+        self.assertIsInstance(result, dict)
+        self.assertIn("grammar", result)
+        self.assertIn("vocabulary", result)
+        self.assertIn("listening", result)
+        self.assertIn("speaking", result)
+
+    def test_analytics_goals(self):
+        """Аналитика: ежедневные цели."""
+        from services.analytics_service import get_daily_goal_stats
+        result = get_daily_goal_stats(self.user_id)
+        self.assertIsInstance(result, list)
+
+    def test_api_clil_modules(self):
+        """GET /api/clil/modules."""
+        resp = self.client.get(f"/api/clil/modules?user_id={self.user_id}&level=B2")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["ok"])
+        self.assertIn("modules", data)
+
+    def test_api_ielts_toefl(self):
+        """GET /api/ielts-toefl/tasks."""
+        resp = self.client.get(f"/api/ielts-toefl/tasks?user_id={self.user_id}&level=B2")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["ok"])
+        self.assertIn("tasks", data)
+
+    def test_api_words_due(self):
+        """GET /api/words/due."""
+        resp = self.client.get(f"/api/words/due?user_id={self.user_id}")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["ok"])
+        self.assertIn("words", data)
+
+    def test_api_stats_activity(self):
+        """GET /api/stats/activity."""
+        resp = self.client.get(f"/api/stats/activity?user_id={self.user_id}")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["ok"])
+
+    def test_api_stats_vocabulary(self):
+        """GET /api/stats/vocabulary."""
+        resp = self.client.get(f"/api/stats/vocabulary?user_id={self.user_id}")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["ok"])
+
+    def test_api_stats_skills(self):
+        """GET /api/stats/skills."""
+        resp = self.client.get(f"/api/stats/skills?user_id={self.user_id}")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["ok"])
+
+    def test_api_stats_goals(self):
+        """GET /api/stats/goals."""
+        resp = self.client.get(f"/api/stats/goals?user_id={self.user_id}")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["ok"])
+
+    def test_api_speaking_monologues(self):
+        """GET /api/speaking/monologues."""
+        resp = self.client.get(f"/api/speaking/monologues?user_id={self.user_id}")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["ok"])
+        self.assertIn("topics", data)
+
+    def test_api_speaking_tblt(self):
+        """GET /api/speaking/tblt."""
+        resp = self.client.get(f"/api/speaking/tblt?user_id={self.user_id}")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["ok"])
+        self.assertIn("tasks", data)
+
+    def test_api_speaking_monologue_evaluate(self):
+        """POST /api/speaking/monologue/evaluate."""
+        resp = self.client.post("/api/speaking/monologue/evaluate",
+                                json={"user_id": self.user_id, "text": "This is a test monologue about technology.",
+                                      "topic_id": "technology_impact"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["ok"])
+        self.assertIn("score", data)
+        self.assertIn("words", data)
+
+    def test_api_speaking_tblt_evaluate(self):
+        """POST /api/speaking/tblt/evaluate."""
+        resp = self.client.post("/api/speaking/tblt/evaluate",
+                                json={"user_id": self.user_id, "text": "I would plan a business trip carefully.",
+                                      "task_id": "plan_trip"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["ok"])
+        self.assertIn("score", data)
+        self.assertIn("words", data)
+
+
 if __name__ == "__main__":
     unittest.main()

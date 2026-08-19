@@ -77,6 +77,49 @@ DEFAULT_MODULES = {
 }
 
 
+# CLIL-модули (Content and Language Integrated Learning)
+# Изучение предметов на английском языке
+CLIL_MODULES = {
+    "B2": [
+        {"title": "Science & Innovation", "description": "Learn about scientific discoveries and innovations in English.", "task": "Explain a recent scientific breakthrough to a non-expert.", "clil": "science"},
+        {"title": "Business & Finance", "description": "Study business concepts and financial literacy in English.", "task": "Analyze a company's annual report and present your findings.", "clil": "business"},
+        {"title": "History & Culture", "description": "Explore historical events and cultural movements in English.", "task": "Give a presentation about a historical event that shaped your country.", "clil": "history"},
+        {"title": "Technology & Society", "description": "Discuss how technology shapes modern society in English.", "task": "Debate the ethical implications of artificial intelligence.", "clil": "technology"},
+    ],
+    "C1": [
+        {"title": "Academic Research", "description": "Read and analyze academic papers in English.", "task": "Summarize a research paper and present its key findings.", "clil": "academic"},
+        {"title": "Global Economics", "description": "Study global economic systems and trade in English.", "task": "Analyze the impact of globalization on developing economies.", "clil": "economics"},
+        {"title": "Environmental Science", "description": "Explore environmental challenges and solutions in English.", "task": "Propose a sustainable solution to a local environmental issue.", "clil": "environment"},
+        {"title": "Media & Journalism", "description": "Analyze media content and journalism practices in English.", "task": "Write a balanced news article about a controversial topic.", "clil": "media"},
+    ],
+    "C2": [
+        {"title": "Advanced Research Methods", "description": "Conduct and present advanced research in English.", "task": "Design a research study and present your methodology.", "clil": "research"},
+        {"title": "International Relations", "description": "Discuss geopolitics and diplomacy in English.", "task": "Simulate a diplomatic negotiation between two countries.", "clil": "diplomacy"},
+        {"title": "Philosophy & Ethics", "description": "Engage with philosophical concepts and ethical debates in English.", "task": "Lead a philosophical discussion on a complex ethical dilemma.", "clil": "philosophy"},
+        {"title": "Advanced Technology", "description": "Explore cutting-edge technology topics in English.", "task": "Present a technical concept to a non-specialist audience.", "clil": "technology"},
+    ],
+}
+
+# IELTS/TOEFL задания для уровней B2-C2
+IELTS_TOEFL_TASKS = {
+    "B2": [
+        {"type": "essay", "title": "Opinion Essay", "description": "Write a 250-word essay expressing your opinion on a given topic.", "prompt": "Some people believe that technology makes us less social. Do you agree or disagree?"},
+        {"type": "speaking", "title": "Part 2 Monologue", "description": "Speak for 1-2 minutes about a given topic.", "prompt": "Describe a place you would like to visit in the future. Explain why you want to go there."},
+        {"type": "reading", "title": "Reading Comprehension", "description": "Read a passage and answer comprehension questions.", "prompt": "Read the passage about climate change and answer 5 questions."},
+    ],
+    "C1": [
+        {"type": "essay", "title": "Argumentative Essay", "description": "Write a 300-word argumentative essay with a clear thesis.", "prompt": "To what extent should governments regulate the use of artificial intelligence?"},
+        {"type": "speaking", "title": "Part 3 Discussion", "description": "Discuss abstract topics and express complex opinions.", "prompt": "Discuss the role of education in reducing social inequality."},
+        {"type": "writing", "title": "Report Writing", "description": "Write a formal report based on given data.", "prompt": "Write a report analyzing the provided chart about internet usage trends."},
+    ],
+    "C2": [
+        {"type": "essay", "title": "Academic Essay", "description": "Write a 400-word academic essay with citations.", "prompt": "Critically evaluate the statement: 'Globalization has done more harm than good.'"},
+        {"type": "speaking", "title": "Part 4 Extended Discussion", "description": "Engage in an extended discussion on abstract topics.", "prompt": "Discuss the philosophical implications of consciousness in artificial intelligence."},
+        {"type": "writing", "title": "Academic Report", "description": "Write a comprehensive academic report.", "prompt": "Write a research report on the effects of remote work on productivity."},
+    ],
+}
+
+
 def get_next_level(current_level):
     """Возвращает следующий уровень CEFR."""
     idx = CEFR_ORDER.index(current_level) if current_level in CEFR_ORDER else 0
@@ -107,9 +150,37 @@ def ensure_modules_for_level(level):
     return created
 
 
+def ensure_clil_modules_for_level(level):
+    """Создаёт CLIL-модули для уровня, если их ещё нет."""
+    existing = get_modules(level)
+    # Проверяем, есть ли уже CLIL-модули (по полю clil в описании)
+    has_clil = any("clil" in m or "CLIL" in m.get("description", "") for m in existing)
+    if has_clil:
+        return existing
+    clil_defaults = CLIL_MODULES.get(level, [])
+    if not clil_defaults:
+        return existing
+    # Добавляем CLIL-модули после стандартных
+    start_index = len(existing)
+    created = []
+    for i, mod in enumerate(clil_defaults):
+        module_id = create_module(level, mod["title"], mod["description"], start_index + i, mod.get("task"))
+        created.append({"id": module_id, "level": level, **mod, "order_index": start_index + i})
+    logger.info(f"Created {len(created)} CLIL modules for level {level}")
+    return existing + created
+
+
+def get_ielts_toefl_tasks(level):
+    """Возвращает задания в формате IELTS/TOEFL для уровня."""
+    return IELTS_TOEFL_TASKS.get(level, [])
+
+
 def get_curriculum(user_id, level):
     """Возвращает программу обучения для уровня с прогрессом пользователя."""
     modules = ensure_modules_for_level(level)
+    # Добавляем CLIL-модули для уровней B2-C2
+    if level in CLIL_MODULES:
+        modules = ensure_clil_modules_for_level(level)
     lessons = get_lessons(user_id)
     lessons_by_module = {}
     for lesson in lessons:
@@ -126,6 +197,7 @@ def get_curriculum(user_id, level):
             "description": mod["description"],
             "task": mod.get("task"),
             "order_index": mod["order_index"],
+            "is_clil": bool(mod.get("clil")),
             "lessons_count": len(mod_lessons),
             "completed_count": completed,
             "progress": round((completed / len(mod_lessons)) * 100) if mod_lessons else 0,

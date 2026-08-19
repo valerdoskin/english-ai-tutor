@@ -21,6 +21,47 @@
             --radius: 16px;
             --shadow: 0 4px 20px rgba(0,0,0,0.3);
             --gradient: linear-gradient(135deg, #38bdf8, #818cf8);
+            /* Алиасы для совместимости */
+            --card-bg: #151d2e;
+            --accent2: #818cf8;
+        }
+        /* Светлая тема */
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg: #f0f4f8;
+                --bg-card: #ffffff;
+                --bg-card-hover: #f8fafc;
+                --text: #1e293b;
+                --text-muted: #64748b;
+                --accent: #0284c7;
+                --accent-2: #6366f1;
+                --success: #059669;
+                --warning: #d97706;
+                --danger: #dc2626;
+                --border: #e2e8f0;
+                --shadow: 0 4px 20px rgba(0,0,0,0.08);
+                --gradient: linear-gradient(135deg, #0284c7, #6366f1);
+                --card-bg: #ffffff;
+                --accent2: #6366f1;
+            }
+        }
+        /* Ручное переключение темы */
+        body.light-theme {
+            --bg: #f0f4f8;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f8fafc;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --accent: #0284c7;
+            --accent-2: #6366f1;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --border: #e2e8f0;
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+            --gradient: linear-gradient(135deg, #0284c7, #6366f1);
+            --card-bg: #ffffff;
+            --accent2: #6366f1;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -85,6 +126,22 @@
             position: relative;
             z-index: 1;
         }
+        .theme-toggle {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 2;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+        .theme-toggle:hover { transform: scale(1.1); }
 
         .stats-bar {
             display: flex;
@@ -393,10 +450,39 @@
         .daily-card:hover { box-shadow: 0 4px 20px rgba(56,189,248,0.2); transform: translateY(-2px); }
         .daily-card .daily-title { font-size: 16px; font-weight: 700; color: var(--accent); }
         .daily-card .daily-desc { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
-
-        .skill-bar { display: flex; align-items: center; margin-bottom: 8px; }
-        .skill-bar .skill-name { width: 80px; font-size: 13px; color: var(--text-muted); }
-        .skill-bar .skill-track { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin: 0 8px; }
+        .badge { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+        .srs-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 16px; }
+        .srs-card .srs-word { font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+        .srs-card .srs-type { font-size: 12px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .srs-card .srs-translation { font-size: 18px; color: var(--text-muted); margin-bottom: 16px; }
+        .srs-card .srs-example { font-size: 14px; color: var(--text-muted); font-style: italic; margin-bottom: 16px; }
+        .srs-buttons { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+        .srs-btn { padding: 10px 16px; border-radius: 12px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+        .srs-btn:hover { transform: translateY(-2px); }
+        .srs-btn-hard { background: #f87171; color: #fff; }
+        .srs-btn-good { background: #fbbf24; color: #fff; }
+        .srs-btn-easy { background: #34d399; color: #fff; }
+        .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+        .stat-box { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 16px; text-align: center; }
+        .stat-box .stat-value { font-size: 24px; font-weight: 800; color: var(--accent); }
+        .stat-box .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+        .skill-bar { margin-bottom: 12px; }
+        .skill-bar .skill-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+        .skill-bar .skill-label span:first-child { color: var(--text); font-weight: 600; }
+        .skill-bar .skill-label span:last-child { color: var(--accent); font-weight: 700; }
+        .skill-bar .skill-track { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+        .skill-bar .skill-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 4px; transition: width 0.5s; }
+        .activity-chart { display: flex; align-items: flex-end; gap: 4px; height: 80px; margin: 12px 0; }
+        .activity-bar { flex: 1; background: linear-gradient(180deg, var(--accent), var(--accent2)); border-radius: 4px 4px 0 0; min-height: 2px; opacity: 0.8; }
+        .activity-bar:hover { opacity: 1; }
+        .activity-labels { display: flex; gap: 4px; }
+        .activity-labels span { flex: 1; text-align: center; font-size: 10px; color: var(--text-muted); }
+        .clil-tag { display: inline-block; background: rgba(56,189,248,0.15); color: var(--accent); padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-left: 8px; }
+        .goal-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+        .goal-card .goal-title { font-size: 15px; font-weight: 700; color: var(--text); }
+        .goal-card .goal-progress { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+        .goal-card .goal-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+        .goal-card .goal-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 3px; }
         .skill-bar .skill-fill { height: 100%; background: var(--gradient); border-radius: 4px; transition: width 0.5s ease; }
         .skill-bar .skill-value { width: 40px; font-size: 13px; font-weight: 700; color: var(--accent); text-align: right; }
 
@@ -423,6 +509,7 @@
         <h1>🎯 English AI Tutor</h1>
         <p id="userLevel">Your personal English teacher</p>
         <div class="level-chip" id="levelChip">Level: A2</div>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
     </div>
 
     <div class="stats-bar" id="statsBar">
@@ -471,6 +558,15 @@
             <div class="card" onclick="showView('speaking')" style="cursor:pointer">
                 <h3>🎤 Speaking Practice</h3>
                 <p>Role-plays, picture descriptions, and voice dialogue.</p>
+            </div>
+            <div class="card" onclick="showView('srs')" style="cursor:pointer">
+                <h3>🔁 Word Review</h3>
+                <p>Spaced repetition cards to master vocabulary and phrases.</p>
+                <div id="srsDueBadge" style="display:none;margin-top:8px"><span class="badge">0 due today</span></div>
+            </div>
+            <div class="card" onclick="showView('stats')" style="cursor:pointer">
+                <h3>📊 Statistics</h3>
+                <p>Track your progress, activity, and learning time.</p>
             </div>
             <div class="card" onclick="showView('test')" style="cursor:pointer">
                 <h3>📝 Level Test</h3>
@@ -522,6 +618,18 @@
             <div class="section-title">🏆 Achievements</div>
             <div class="subtitle">Your badges and milestones</div>
             <div id="achievements-content"></div>
+        </div>
+
+        <div id="view-srs" class="view hidden">
+            <div class="section-title">🔁 Word Review</div>
+            <div class="subtitle">Spaced repetition to master vocabulary</div>
+            <div id="srs-content"></div>
+        </div>
+
+        <div id="view-stats" class="view hidden">
+            <div class="section-title">📊 Statistics</div>
+            <div class="subtitle">Your learning analytics</div>
+            <div id="stats-content"></div>
         </div>
     </div>
 

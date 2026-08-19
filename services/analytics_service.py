@@ -103,6 +103,60 @@ def get_weak_areas(user_id):
     return error_stats[:3]
 
 
+def get_activity_by_period(user_id, period="week"):
+    """Возвращает активность за период (day/week/month)."""
+    days_map = {"day": 1, "week": 7, "month": 30}
+    days = days_map.get(period, 7)
+    return get_activity_by_day(user_id, days)
+
+
+def get_learning_time(user_id, days=7):
+    """Возвращает время обучения за период (оценка по количеству действий)."""
+    activity = get_activity_by_day(user_id, days)
+    # Оцениваем время: ~2 минуты на действие
+    total_actions = sum(a["actions"] for a in activity)
+    return {"days": days, "total_actions": total_actions, "estimated_minutes": total_actions * 2}
+
+
+def get_vocabulary_stats(user_id):
+    """Возвращает статистику по словарю (SRS)."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM words WHERE user_id = ?", (user_id,))
+    total = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM words WHERE user_id = ? AND item_type = 'word'", (user_id,))
+    words = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM words WHERE user_id = ? AND item_type = 'phrase'", (user_id,))
+    phrases = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM words WHERE user_id = ? AND item_type = 'grammar'", (user_id,))
+    grammar = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM words WHERE user_id = ? AND repetitions >= 3", (user_id,))
+    mastered = c.fetchone()[0]
+    conn.close()
+    return {
+        "total": total,
+        "words": words,
+        "phrases": phrases,
+        "grammar": grammar,
+        "mastered": mastered,
+    }
+
+
+def get_daily_goal_stats(user_id):
+    """Возвращает статистику по ежедневным целям за последние 7 дней."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT goal_date, goal_type, target, progress, completed
+        FROM daily_goals
+        WHERE user_id = ? AND goal_date >= date('now', '-7 days')
+        ORDER BY goal_date
+    """, (user_id,))
+    rows = c.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def generate_report(user_id):
     """Генерирует полный отчёт о прогрессе."""
     conn = get_connection()

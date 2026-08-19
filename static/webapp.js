@@ -25,6 +25,35 @@ function initTelegram() {
             loadStats();
         }
     }
+    // Демо-режим: fallback для тестирования в браузере без Telegram (?demo=1)
+    const params = new URLSearchParams(window.location.search);
+    if (!userId && params.get('demo') === '1') {
+        userId = 99999;
+        loadProfile();
+        loadStats();
+    }
+    applySavedTheme();
+}
+
+// Переключение темы
+function toggleTheme() {
+    const body = document.body;
+    const isLight = body.classList.toggle('light-theme');
+    const btn = document.querySelector('.theme-toggle');
+    if (btn) btn.textContent = isLight ? '☀️' : '🌙';
+    try { localStorage.setItem('theme', isLight ? 'light' : 'dark'); } catch (e) {}
+}
+
+// Применение сохранённой темы
+function applySavedTheme() {
+    try {
+        const saved = localStorage.getItem('theme');
+        if (saved === 'light') {
+            document.body.classList.add('light-theme');
+            const btn = document.querySelector('.theme-toggle');
+            if (btn) btn.textContent = '☀️';
+        }
+    } catch (e) {}
 }
 
 // Показать уведомление
@@ -73,6 +102,8 @@ function showView(view) {
     if (view === 'speaking') loadSpeaking();
     if (view === 'daily') loadDaily();
     if (view === 'achievements') loadAchievements();
+    if (view === 'srs') loadSrs();
+    if (view === 'stats') loadStatsView();
     window.scrollTo(0, 0);
 }
 
@@ -120,6 +151,21 @@ async function loadStats() {
             } else {
                 rp.style.display = 'none';
             }
+        }
+        // Загружаем количество слов для повторения
+        try {
+            const dueRes = await fetch(`/api/words/due?user_id=${userId}&limit=1`);
+            const dueData = await dueRes.json();
+            const dueCount = dueData.count || 0;
+            const badge = document.getElementById('srsDueBadge');
+            if (dueCount > 0) {
+                badge.style.display = 'block';
+                badge.innerHTML = `<span class="badge">${dueCount} due today</span>`;
+            } else {
+                badge.style.display = 'none';
+            }
+        } catch (e) {
+            console.error('SRS badge error:', e);
         }
     } catch (e) {
         console.error('Stats error:', e);
@@ -790,6 +836,8 @@ async function loadSpeaking() {
         <div class="tab-bar">
             <div class="tab active" onclick="loadSpeaking()">Role-plays</div>
             <div class="tab" onclick="loadSpeakingPictures()">Pictures</div>
+            <div class="tab" onclick="loadSpeakingMonologues()">Monologues</div>
+            <div class="tab" onclick="loadSpeakingTblt()">Tasks</div>
             <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
         </div>
         <div class="loading">
@@ -807,6 +855,8 @@ async function loadSpeaking() {
             <div class="tab-bar">
                 <div class="tab active" onclick="loadSpeaking()">Role-plays</div>
                 <div class="tab" onclick="loadSpeakingPictures()">Pictures</div>
+                <div class="tab" onclick="loadSpeakingMonologues()">Monologues</div>
+                <div class="tab" onclick="loadSpeakingTblt()">Tasks</div>
                 <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
             </div>
             ${data.scenarios.map(s => `
@@ -902,6 +952,8 @@ async function loadSpeakingPictures() {
         <div class="tab-bar">
             <div class="tab" onclick="loadSpeaking()">Role-plays</div>
             <div class="tab active" onclick="loadSpeakingPictures()">Pictures</div>
+            <div class="tab" onclick="loadSpeakingMonologues()">Monologues</div>
+            <div class="tab" onclick="loadSpeakingTblt()">Tasks</div>
             <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
         </div>
         <div class="loading">
@@ -919,6 +971,8 @@ async function loadSpeakingPictures() {
             <div class="tab-bar">
                 <div class="tab" onclick="loadSpeaking()">Role-plays</div>
                 <div class="tab active" onclick="loadSpeakingPictures()">Pictures</div>
+                <div class="tab" onclick="loadSpeakingMonologues()">Monologues</div>
+                <div class="tab" onclick="loadSpeakingTblt()">Tasks</div>
                 <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
             </div>
             ${data.topics.map(t => `
@@ -1009,6 +1063,8 @@ async function loadSpeakingDialogue() {
         <div class="tab-bar">
             <div class="tab" onclick="loadSpeaking()">Role-plays</div>
             <div class="tab" onclick="loadSpeakingPictures()">Pictures</div>
+            <div class="tab" onclick="loadSpeakingMonologues()">Monologues</div>
+            <div class="tab" onclick="loadSpeakingTblt()">Tasks</div>
             <div class="tab active" onclick="loadSpeakingDialogue()">Chat</div>
         </div>
         <div class="card">
@@ -1021,6 +1077,274 @@ async function loadSpeakingDialogue() {
             <button class="btn btn-primary" onclick="sendSpeakingMessage()">Send</button>
         </div>`;
     addSpeakingMessage('Hello! I am your English tutor. What would you like to talk about today?', 'bot');
+}
+
+async function loadSpeakingMonologues() {
+    const content = document.getElementById('speaking-content');
+    content.innerHTML = `
+        <div class="tab-bar">
+            <div class="tab" onclick="loadSpeaking()">Role-plays</div>
+            <div class="tab" onclick="loadSpeakingPictures()">Pictures</div>
+            <div class="tab active" onclick="loadSpeakingMonologues()">Monologues</div>
+            <div class="tab" onclick="loadSpeakingTblt()">Tasks</div>
+            <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
+        </div>
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading monologue topics...</p>
+        </div>`;
+    try {
+        const res = await fetch(`/api/speaking/monologues?user_id=${userId}`);
+        const data = await res.json();
+        if (data.error) {
+            content.innerHTML = `<div class="card"><p class="error-text">${data.error}</p></div>`;
+            return;
+        }
+        content.innerHTML = `
+            <div class="tab-bar">
+                <div class="tab" onclick="loadSpeaking()">Role-plays</div>
+                <div class="tab" onclick="loadSpeakingPictures()">Pictures</div>
+                <div class="tab active" onclick="loadSpeakingMonologues()">Monologues</div>
+                <div class="tab" onclick="loadSpeakingTblt()">Tasks</div>
+                <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
+            </div>
+            <div class="card" style="margin-bottom:12px">
+                <h3>🎤 Monologues</h3>
+                <p>Practice speaking for extended periods on advanced topics. Choose a topic and speak for 2-5 minutes.</p>
+            </div>
+            ${data.topics.map(t => `
+                <div class="module-card" onclick="startMonologue('${t.id}')">
+                    <div class="module-title">🎤 ${t.title}</div>
+                    <div class="module-desc">${t.description}</div>
+                    <div class="tag speaking" style="margin-top:8px">${t.prompt}</div>
+                </div>
+            `).join('')}`;
+    } catch (e) {
+        content.innerHTML = `<div class="card"><p class="error-text">Failed to load monologue topics.</p></div>`;
+    }
+}
+
+async function startMonologue(topicId) {
+    const content = document.getElementById('speaking-content');
+    try {
+        const res = await fetch(`/api/speaking/monologues?user_id=${userId}`);
+        const data = await res.json();
+        const topic = data.topics.find(t => t.id === topicId);
+        if (!topic) return;
+        content.innerHTML = `
+            <div class="tab-bar">
+                <div class="tab" onclick="loadSpeaking()">Role-plays</div>
+                <div class="tab" onclick="loadSpeakingPictures()">Pictures</div>
+                <div class="tab active" onclick="loadSpeakingMonologues()">Monologues</div>
+                <div class="tab" onclick="loadSpeakingTblt()">Tasks</div>
+                <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
+            </div>
+            <div class="card">
+                <h3>🎤 ${topic.title}</h3>
+                <p>${topic.description}</p>
+                <div class="tag speaking" style="margin-top:8px">${topic.prompt}</div>
+                <div style="margin-top:12px">
+                    <strong>Tips:</strong>
+                    <ul style="margin-top:8px; padding-left:20px; color:var(--text-muted); font-size:14px">
+                        ${topic.tips.map(t => `<li>${t}</li>`).join('')}
+                    </ul>
+                </div>
+            </div>
+            <div class="card">
+                <h3>✍️ Your Monologue</h3>
+                <textarea class="input" id="monologue-text" rows="6" placeholder="Write or type your monologue here..."></textarea>
+                <button class="btn btn-primary" style="margin-top:8px" onclick="submitMonologue('${topic.id}')">Submit for Feedback</button>
+            </div>`;
+    } catch (e) {
+        content.innerHTML = `<div class="card"><p class="error-text">Failed to load monologue.</p></div>`;
+    }
+}
+
+async function submitMonologue(topicId) {
+    const text = document.getElementById('monologue-text').value.trim();
+    if (!text) { showToast('Please write your monologue first'); return; }
+    const content = document.getElementById('speaking-content');
+    content.innerHTML = `
+        <div class="tab-bar">
+            <div class="tab" onclick="loadSpeaking()">Role-plays</div>
+            <div class="tab" onclick="loadSpeakingPictures()">Pictures</div>
+            <div class="tab active" onclick="loadSpeakingMonologues()">Monologues</div>
+            <div class="tab" onclick="loadSpeakingTblt()">Tasks</div>
+            <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
+        </div>
+        <div class="loading"><div class="spinner"></div><p>Evaluating your monologue...</p></div>`;
+    try {
+        const res = await fetch(`/api/speaking/monologue/evaluate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, text, topic_id: topicId })
+        });
+        const data = await res.json();
+        if (data.error) {
+            content.innerHTML = `<div class="card"><p class="error-text">${data.error}</p></div>`;
+            return;
+        }
+        content.innerHTML = `
+            <div class="tab-bar">
+                <div class="tab" onclick="loadSpeaking()">Role-plays</div>
+                <div class="tab" onclick="loadSpeakingPictures()">Pictures</div>
+                <div class="tab active" onclick="loadSpeakingMonologues()">Monologues</div>
+                <div class="tab" onclick="loadSpeakingTblt()">Tasks</div>
+                <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
+            </div>
+            <div class="card">
+                <h3>📊 Monologue Feedback</h3>
+                <div class="stat-grid" style="margin-top:12px">
+                    <div class="stat-box"><div class="value">${data.score}</div><div class="label">Score</div></div>
+                    <div class="stat-box"><div class="value">${data.words}</div><div class="label">Words</div></div>
+                </div>
+                <p style="margin-top:12px">${data.feedback}</p>
+                ${data.suggestions && data.suggestions.length ? `
+                    <div style="margin-top:12px">
+                        <strong>Suggestions:</strong>
+                        <ul style="margin-top:8px; padding-left:20px; color:var(--text-muted); font-size:14px">
+                            ${data.suggestions.map(s => `<li>${s}</li>`).join('')}
+                        </ul>
+                    </div>` : ''}
+                <button class="btn btn-secondary" style="margin-top:12px" onclick="loadSpeakingMonologues()">← Back to Topics</button>
+            </div>`;
+    } catch (e) {
+        content.innerHTML = `<div class="card"><p class="error-text">Failed to evaluate monologue.</p></div>`;
+    }
+}
+
+async function loadSpeakingTblt() {
+    const content = document.getElementById('speaking-content');
+    content.innerHTML = `
+        <div class="tab-bar">
+            <div class="tab" onclick="loadSpeaking()">Role-plays</div>
+            <div class="tab" onclick="loadSpeakingPictures()">Pictures</div>
+            <div class="tab" onclick="loadSpeakingMonologues()">Monologues</div>
+            <div class="tab active" onclick="loadSpeakingTblt()">Tasks</div>
+            <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
+        </div>
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading TBLT tasks...</p>
+        </div>`;
+    try {
+        const res = await fetch(`/api/speaking/tblt?user_id=${userId}`);
+        const data = await res.json();
+        if (data.error) {
+            content.innerHTML = `<div class="card"><p class="error-text">${data.error}</p></div>`;
+            return;
+        }
+        content.innerHTML = `
+            <div class="tab-bar">
+                <div class="tab" onclick="loadSpeaking()">Role-plays</div>
+                <div class="tab" onclick="loadSpeakingPictures()">Pictures</div>
+                <div class="tab" onclick="loadSpeakingMonologues()">Monologues</div>
+                <div class="tab active" onclick="loadSpeakingTblt()">Tasks</div>
+                <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
+            </div>
+            <div class="card" style="margin-bottom:12px">
+                <h3>📋 Task-Based Learning</h3>
+                <p>Complete real-world tasks using English. Focus on communication, not just grammar.</p>
+            </div>
+            ${data.tasks.map(t => `
+                <div class="module-card" onclick="startTbltTask('${t.id}')">
+                    <div class="module-title">📋 ${t.title}</div>
+                    <div class="module-desc">${t.description}</div>
+                    <div class="tag speaking" style="margin-top:8px">${t.language_focus}</div>
+                </div>
+            `).join('')}`;
+    } catch (e) {
+        content.innerHTML = `<div class="card"><p class="error-text">Failed to load TBLT tasks.</p></div>`;
+    }
+}
+
+async function startTbltTask(taskId) {
+    const content = document.getElementById('speaking-content');
+    try {
+        const res = await fetch(`/api/speaking/tblt?user_id=${userId}`);
+        const data = await res.json();
+        const task = data.tasks.find(t => t.id === taskId);
+        if (!task) return;
+        content.innerHTML = `
+            <div class="tab-bar">
+                <div class="tab" onclick="loadSpeaking()">Role-plays</div>
+                <div class="tab" onclick="loadSpeakingPictures()">Pictures</div>
+                <div class="tab" onclick="loadSpeakingMonologues()">Monologues</div>
+                <div class="tab active" onclick="loadSpeakingTblt()">Tasks</div>
+                <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
+            </div>
+            <div class="card">
+                <h3>📋 ${task.title}</h3>
+                <p>${task.description}</p>
+                <div style="margin-top:12px">
+                    <strong>Steps:</strong>
+                    <ol style="margin-top:8px; padding-left:20px; color:var(--text-muted); font-size:14px">
+                        ${task.steps.map(s => `<li>${s}</li>`).join('')}
+                    </ol>
+                </div>
+                <div class="tag speaking" style="margin-top:12px">${task.language_focus}</div>
+            </div>
+            <div class="card">
+                <h3>✍️ Your Response</h3>
+                <textarea class="input" id="tblt-text" rows="6" placeholder="Complete the task here..."></textarea>
+                <button class="btn btn-primary" style="margin-top:8px" onclick="submitTbltTask('${task.id}')">Submit for Feedback</button>
+            </div>`;
+    } catch (e) {
+        content.innerHTML = `<div class="card"><p class="error-text">Failed to load task.</p></div>`;
+    }
+}
+
+async function submitTbltTask(taskId) {
+    const text = document.getElementById('tblt-text').value.trim();
+    if (!text) { showToast('Please complete the task first'); return; }
+    const content = document.getElementById('speaking-content');
+    content.innerHTML = `
+        <div class="tab-bar">
+            <div class="tab" onclick="loadSpeaking()">Role-plays</div>
+            <div class="tab" onclick="loadSpeakingPictures()">Pictures</div>
+            <div class="tab" onclick="loadSpeakingMonologues()">Monologues</div>
+            <div class="tab active" onclick="loadSpeakingTblt()">Tasks</div>
+            <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
+        </div>
+        <div class="loading"><div class="spinner"></div><p>Evaluating your task...</p></div>`;
+    try {
+        const res = await fetch(`/api/speaking/tblt/evaluate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, text, task_id: taskId })
+        });
+        const data = await res.json();
+        if (data.error) {
+            content.innerHTML = `<div class="card"><p class="error-text">${data.error}</p></div>`;
+            return;
+        }
+        content.innerHTML = `
+            <div class="tab-bar">
+                <div class="tab" onclick="loadSpeaking()">Role-plays</div>
+                <div class="tab" onclick="loadSpeakingPictures()">Pictures</div>
+                <div class="tab" onclick="loadSpeakingMonologues()">Monologues</div>
+                <div class="tab active" onclick="loadSpeakingTblt()">Tasks</div>
+                <div class="tab" onclick="loadSpeakingDialogue()">Chat</div>
+            </div>
+            <div class="card">
+                <h3>📊 Task Feedback</h3>
+                <div class="stat-grid" style="margin-top:12px">
+                    <div class="stat-box"><div class="value">${data.score}</div><div class="label">Score</div></div>
+                    <div class="stat-box"><div class="value">${data.words}</div><div class="label">Words</div></div>
+                </div>
+                <p style="margin-top:12px">${data.feedback}</p>
+                ${data.suggestions && data.suggestions.length ? `
+                    <div style="margin-top:12px">
+                        <strong>Suggestions:</strong>
+                        <ul style="margin-top:8px; padding-left:20px; color:var(--text-muted); font-size:14px">
+                            ${data.suggestions.map(s => `<li>${s}</li>`).join('')}
+                        </ul>
+                    </div>` : ''}
+                <button class="btn btn-secondary" style="margin-top:12px" onclick="loadSpeakingTblt()">← Back to Tasks</button>
+            </div>`;
+    } catch (e) {
+        content.innerHTML = `<div class="card"><p class="error-text">Failed to evaluate task.</p></div>`;
+    }
 }
 
 // ============ DAILY PRACTICE ============
@@ -1122,6 +1446,229 @@ async function loadAchievements() {
             </div>`;
     } catch (e) {
         content.innerHTML = `<div class="card"><p class="error-text">Failed to load achievements.</p></div>`;
+    }
+}
+
+// ============ SRS (ПОВТОРЕНИЕ СЛОВ) ============
+let srsQueue = [];
+let srsIndex = 0;
+
+async function loadSrs() {
+    const content = document.getElementById('srs-content');
+    content.innerHTML = `
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading your review cards...</p>
+        </div>`;
+    try {
+        const res = await fetch(`/api/words/due?user_id=${userId}&limit=20`);
+        const data = await res.json();
+        if (data.error) {
+            content.innerHTML = `<div class="card"><p class="error-text">${data.error}</p></div>`;
+            return;
+        }
+        srsQueue = data.words || [];
+        srsIndex = 0;
+        if (srsQueue.length === 0) {
+            content.innerHTML = `
+                <div class="card" style="text-align:center;padding:32px">
+                    <div style="font-size:48px;margin-bottom:12px">🎉</div>
+                    <h3>All caught up!</h3>
+                    <p>No words due for review today. Add new words to build your vocabulary.</p>
+                    <div style="margin-top:16px">
+                        <button class="btn btn-primary" onclick="showView('lessons')">📚 Learn More</button>
+                    </div>
+                </div>`;
+            return;
+        }
+        renderSrsCard();
+    } catch (e) {
+        content.innerHTML = `<div class="card"><p class="error-text">Failed to load review cards.</p></div>`;
+    }
+}
+
+function renderSrsCard() {
+    const content = document.getElementById('srs-content');
+    if (srsIndex >= srsQueue.length) {
+        content.innerHTML = `
+            <div class="card" style="text-align:center;padding:32px">
+                <div style="font-size:48px;margin-bottom:12px">🎉</div>
+                <h3>Session complete!</h3>
+                <p>You reviewed ${srsQueue.length} items. Great job!</p>
+                <div style="margin-top:16px">
+                    <button class="btn btn-primary" onclick="showView('home')">🏠 Home</button>
+                </div>
+            </div>`;
+        loadStats();
+        return;
+    }
+    const item = srsQueue[srsIndex];
+    const typeLabels = { word: 'Word', phrase: 'Phrase', grammar: 'Grammar' };
+    const typeLabel = typeLabels[item.item_type] || 'Word';
+    const typeIcons = { word: '📖', phrase: '💬', grammar: '🔤' };
+    content.innerHTML = `
+        <div class="srs-card">
+            <div class="srs-type">${typeIcons[item.item_type] || '📖'} ${typeLabel}</div>
+            <div class="srs-word">${item.word}</div>
+            <div class="srs-translation">${item.translation}</div>
+            ${item.example ? `<div class="srs-example">"${item.example}"</div>` : ''}
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">
+                Card ${srsIndex + 1} of ${srsQueue.length}
+            </div>
+            <div class="srs-buttons">
+                <button class="srs-btn srs-btn-hard" onclick="reviewSrsItem(1)">😖 Hard</button>
+                <button class="srs-btn srs-btn-good" onclick="reviewSrsItem(3)">🙂 Good</button>
+                <button class="srs-btn srs-btn-easy" onclick="reviewSrsItem(5)">😄 Easy</button>
+            </div>
+        </div>`;
+}
+
+async function reviewSrsItem(quality) {
+    const item = srsQueue[srsIndex];
+    try {
+        const res = await fetch('/api/words/review', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, word_id: item.id, quality })
+        });
+        const data = await res.json();
+        if (data.ok && data.xp) {
+            showXpPopup(data.xp);
+        }
+        if (data.new_achievements && data.new_achievements.length > 0) {
+            showToast(`🏆 Achievement unlocked: ${data.new_achievements[0].title}!`);
+        }
+    } catch (e) {
+        console.error('Review error:', e);
+    }
+    srsIndex++;
+    renderSrsCard();
+}
+
+// ============ СТАТИСТИКА ============
+async function loadStatsView() {
+    const content = document.getElementById('stats-content');
+    content.innerHTML = `
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading your statistics...</p>
+        </div>`;
+    try {
+        const [statsRes, activityRes, vocabRes, skillsRes, goalsRes] = await Promise.all([
+            fetch(`/api/stats?user_id=${userId}`),
+            fetch(`/api/stats/activity?user_id=${userId}&period=week`),
+            fetch(`/api/stats/vocabulary?user_id=${userId}`),
+            fetch(`/api/stats/skills?user_id=${userId}`),
+            fetch(`/api/stats/goals?user_id=${userId}`)
+        ]);
+        const statsData = await statsRes.json();
+        const activityData = await activityRes.json();
+        const vocabData = await vocabRes.json();
+        const skillsData = await skillsRes.json();
+        const goalsData = await goalsRes.json();
+
+        const stats = statsData.stats || {};
+        const activity = activityData.activity || [];
+        const vocab = vocabData.vocabulary || {};
+        const skills = skillsData.skills || {};
+        const goals = goalsData.goals || [];
+
+        // График активности
+        const maxActions = Math.max(1, ...activity.map(a => a.actions));
+        const activityBars = activity.map(a => {
+            const h = Math.max(2, Math.round((a.actions / maxActions) * 80));
+            return `<div class="activity-bar" style="height:${h}px" title="${a.day}: ${a.actions} actions"></div>`;
+        }).join('');
+        const activityLabels = activity.map(a => {
+            const d = new Date(a.day + 'T00:00:00');
+            return `<span>${d.getDate()}</span>`;
+        }).join('');
+
+        // Прогресс по навыкам
+        const skillNames = { grammar: 'Grammar', vocabulary: 'Vocabulary', listening: 'Listening', speaking: 'Speaking', reading: 'Reading', writing: 'Writing' };
+        const skillBars = Object.entries(skills).map(([key, val]) => `
+            <div class="skill-bar">
+                <div class="skill-label">
+                    <span>${skillNames[key] || key}</span>
+                    <span>${val.percent || 0}%</span>
+                </div>
+                <div class="skill-track"><div class="skill-fill" style="width:${val.percent || 0}%"></div></div>
+            </div>
+        `).join('');
+
+        // Ежедневные цели
+        const goalCards = goals.map(g => {
+            const pct = g.target > 0 ? Math.min(100, Math.round((g.progress / g.target) * 100)) : 0;
+            return `
+                <div class="goal-card">
+                    <div class="goal-title">${g.completed ? '✅' : '⏳'} ${g.goal_type}</div>
+                    <div class="goal-progress">${g.progress}/${g.target} (${pct}%)</div>
+                    <div class="goal-bar"><div class="goal-fill" style="width:${pct}%"></div></div>
+                </div>`;
+        }).join('');
+
+        content.innerHTML = `
+            <div class="stat-grid">
+                <div class="stat-box">
+                    <div class="stat-value">${stats.xp || 0}</div>
+                    <div class="stat-label">Total XP</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">${stats.streak || 0}🔥</div>
+                    <div class="stat-label">Day Streak</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">${stats.completed_lessons || 0}</div>
+                    <div class="stat-label">Lessons Done</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">${vocab.total || 0}</div>
+                    <div class="stat-label">Words Learned</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📈 Weekly Activity</h3>
+                <div class="activity-chart">${activityBars || '<p style="font-size:13px;color:var(--text-muted)">No activity yet</p>'}</div>
+                ${activity.length > 0 ? `<div class="activity-labels">${activityLabels}</div>` : ''}
+                <p style="font-size:12px;color:var(--text-muted);margin-top:8px">
+                    ${activityData.learning_time ? `~${activityData.learning_time.estimated_minutes} min this week` : ''}
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>🎯 Skill Progress</h3>
+                ${skillBars || '<p style="font-size:13px;color:var(--text-muted)">Complete lessons to see progress</p>'}
+            </div>
+
+            <div class="card">
+                <h3>📚 Vocabulary</h3>
+                <div class="stat-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:0">
+                    <div class="stat-box">
+                        <div class="stat-value">${vocab.words || 0}</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">${vocab.phrases || 0}</div>
+                        <div class="stat-label">Phrases</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">${vocab.grammar || 0}</div>
+                        <div class="stat-label">Grammar</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">${vocab.mastered || 0}</div>
+                        <div class="stat-label">Mastered</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>✅ Daily Goals</h3>
+                ${goalCards || '<p style="font-size:13px;color:var(--text-muted)">No goals set yet</p>'}
+            </div>`;
+    } catch (e) {
+        content.innerHTML = `<div class="card"><p class="error-text">Failed to load statistics.</p></div>`;
     }
 }
 

@@ -11,13 +11,13 @@ from database import get_connection
 logger = logging.getLogger(__name__)
 
 
-def add_word(user_id, word, translation, example=None, level="A2"):
-    """Добавляет слово в систему SRS."""
+def add_word(user_id, word, translation, example=None, level="A2", item_type="word"):
+    """Добавляет слово/фразу/грамматическую конструкцию в систему SRS."""
     conn = get_connection()
     c = conn.cursor()
     c.execute(
-        "INSERT INTO words (user_id, word, translation, example, level) VALUES (?, ?, ?, ?, ?)",
-        (user_id, word, translation, example, level),
+        "INSERT INTO words (user_id, word, translation, example, level, item_type) VALUES (?, ?, ?, ?, ?, ?)",
+        (user_id, word, translation, example, level, item_type),
     )
     conn.commit()
     word_id = c.lastrowid
@@ -25,17 +25,35 @@ def add_word(user_id, word, translation, example=None, level="A2"):
     return word_id
 
 
-def get_due_words(user_id, limit=20):
-    """Возвращает слова, которые нужно повторить сегодня."""
+def add_phrase(user_id, phrase, translation, example=None, level="B1"):
+    """Добавляет фразу в систему SRS."""
+    return add_word(user_id, phrase, translation, example, level, item_type="phrase")
+
+
+def add_grammar_item(user_id, pattern, explanation, example=None, level="B1"):
+    """Добавляет грамматическую конструкцию в систему SRS."""
+    return add_word(user_id, pattern, explanation, example, level, item_type="grammar")
+
+
+def get_due_words(user_id, limit=20, item_type=None):
+    """Возвращает слова/фразы, которые нужно повторить сегодня."""
     today = datetime.now().isoformat()
     conn = get_connection()
     c = conn.cursor()
-    c.execute("""
-        SELECT * FROM words
-        WHERE user_id = ? AND (next_review IS NULL OR next_review <= ?)
-        ORDER BY next_review IS NULL DESC, next_review ASC
-        LIMIT ?
-    """, (user_id, today, limit))
+    if item_type:
+        c.execute("""
+            SELECT * FROM words
+            WHERE user_id = ? AND item_type = ? AND (next_review IS NULL OR next_review <= ?)
+            ORDER BY next_review IS NULL DESC, next_review ASC
+            LIMIT ?
+        """, (user_id, item_type, today, limit))
+    else:
+        c.execute("""
+            SELECT * FROM words
+            WHERE user_id = ? AND (next_review IS NULL OR next_review <= ?)
+            ORDER BY next_review IS NULL DESC, next_review ASC
+            LIMIT ?
+        """, (user_id, today, limit))
     rows = c.fetchall()
     conn.close()
     return [dict(r) for r in rows]

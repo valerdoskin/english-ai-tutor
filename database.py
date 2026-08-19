@@ -48,7 +48,8 @@ def init_db():
             next_review TEXT,
             interval INTEGER DEFAULT 0,
             ease_factor REAL DEFAULT 2.5,
-            repetitions INTEGER DEFAULT 0
+            repetitions INTEGER DEFAULT 0,
+            item_type TEXT DEFAULT 'word'
         )
     ''')
     c.execute('''
@@ -122,6 +123,7 @@ def init_db():
         ("words", "example", "TEXT"),
         ("words", "ease_factor", "REAL DEFAULT 2.5"),
         ("words", "repetitions", "INTEGER DEFAULT 0"),
+        ("words", "item_type", "TEXT DEFAULT 'word'"),
         ("errors", "error_type", "TEXT DEFAULT 'grammar'"),
         ("modules", "task", "TEXT"),
     ]
