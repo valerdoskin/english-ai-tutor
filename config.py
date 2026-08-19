@@ -25,5 +25,18 @@ REPLICATE_API_KEY = os.getenv("REPLICATE_API_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
-MAX_HISTORY = 10
+MAX_HISTORY = int(os.getenv("MAX_HISTORY", "10"))
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tutor_bot.db")
+
+# === Настройки приложения ===
+TEST_QUESTIONS_COUNT = int(os.getenv("TEST_QUESTIONS_COUNT", "12"))
+DAILY_WORDS_LIMIT = int(os.getenv("DAILY_WORDS_LIMIT", "20"))
+LESSONS_PER_MODULE = int(os.getenv("LESSONS_PER_MODULE", "5"))
+
+# === Настройки геймификации (XP) ===
+XP_LESSON = int(os.getenv("XP_LESSON", "20"))
+XP_TEST_QUESTION = int(os.getenv("XP_TEST_QUESTION", "5"))
+XP_WORD = int(os.getenv("XP_WORD", "5"))
+XP_VOICE = int(os.getenv("XP_VOICE", "10"))
+XP_DAILY = int(os.getenv("XP_DAILY", "15"))
+XP_TASK = int(os.getenv("XP_TASK", "30"))
