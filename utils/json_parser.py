@@ -5,6 +5,32 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def extract_json(text):
+    """Извлекает JSON из ответа LLM. Возвращает dict/list или None."""
+    if not text:
+        return None
+    text = text.strip()
+    # Убираем markdown-обёртки
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Пробуем найти JSON в тексте
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(0))
+            except json.JSONDecodeError:
+                # Очищаем trailing commas и пробуем снова
+                cleaned = re.sub(r',\s*([}\]])', r'\1', match.group(0))
+                try:
+                    return json.loads(cleaned)
+                except json.JSONDecodeError:
+                    return None
+    return None
+
+
 def parse_groq_response(text):
     """Парсит ответ LLM: пытается извлечь JSON, если не выходит — возвращает текст."""
     if not text:
