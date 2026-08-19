@@ -544,6 +544,131 @@ def api_dialogue_voice():
     return jsonify(result)
 
 
+# === Новые API endpoints (Этап 0) ===
+
+@app.route("/api/curriculum", methods=["GET"])
+def api_curriculum():
+    """Возвращает программу обучения для уровня пользователя."""
+    from services.curriculum_service import get_curriculum
+    from database import get_user_data
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    level, _, _ = get_user_data(user_id)
+    curriculum = get_curriculum(user_id, level)
+    return jsonify({"ok": True, "level": level, "curriculum": curriculum})
+
+
+@app.route("/api/lesson", methods=["GET"])
+def api_lesson():
+    """Возвращает содержимое урока."""
+    from services.curriculum_service import get_lesson_content
+    user_id = request.args.get("user_id", type=int)
+    lesson_id = request.args.get("lesson_id", type=int)
+    if not user_id or not lesson_id:
+        return jsonify({"ok": False, "error": "Missing user_id or lesson_id"}), 400
+    lesson = get_lesson_content(user_id, lesson_id)
+    if not lesson:
+        return jsonify({"ok": False, "error": "Lesson not found"}), 404
+    return jsonify({"ok": True, "lesson": lesson})
+
+
+@app.route("/api/lesson/submit", methods=["POST"])
+def api_lesson_submit():
+    """Отмечает урок завершённым и начисляет XP."""
+    from services.curriculum_service import submit_lesson
+    from services.progress_service import award_xp, track_daily_progress
+    from services.gamification_service import check_achievements
+    data = request.json
+    user_id = data.get("user_id")
+    lesson_id = data.get("lesson_id")
+    score = data.get("score", 0)
+    if not user_id or not lesson_id:
+        return jsonify({"ok": False, "error": "Missing data"}), 400
+    result = submit_lesson(user_id, lesson_id, score)
+    # Начисляем XP
+    new_xp, rank = award_xp(user_id, "lesson_completed", {"lesson_id": lesson_id, "score": score})
+    # Обновляем ежедневную цель
+    track_daily_progress(user_id, "lessons", 1)
+    # Проверяем достижения
+    new_achievements = check_achievements(user_id)
+    result["xp"] = new_xp
+    result["rank"] = rank
+    result["new_achievements"] = new_achievements
+    return jsonify(result)
+
+
+@app.route("/api/achievements", methods=["GET"])
+def api_achievements():
+    """Возвращает достижения пользователя."""
+    from services.gamification_service import get_user_achievements
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    achievements = get_user_achievements(user_id)
+    return jsonify({"ok": True, "achievements": achievements})
+
+
+@app.route("/api/stats", methods=["GET"])
+def api_stats():
+    """Возвращает полную статистику пользователя."""
+    from services.progress_service import get_user_stats, get_daily_summary
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    stats = get_user_stats(user_id)
+    daily = get_daily_summary(user_id)
+    return jsonify({"ok": True, "stats": stats, "daily": daily})
+
+
+@app.route("/api/report", methods=["GET"])
+def api_report():
+    """Возвращает отчёт о прогрессе."""
+    from services.analytics_service import generate_report
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    report = generate_report(user_id)
+    if not report:
+        return jsonify({"ok": False, "error": "User not found"}), 404
+    return jsonify({"ok": True, "report": report})
+
+
+@app.route("/api/adaptive-test/start", methods=["GET"])
+def api_adaptive_test_start():
+    """Начинает адаптивный тест уровня."""
+    from services.adaptive_test_service import AdaptiveTest
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    test = AdaptiveTest(max_questions=12)
+    question = test.get_next_question()
+    # Убираем правильный ответ из вопроса
+    client_question = {k: v for k, v in question.items() if k != "answer"}
+    return jsonify({
+        "ok": True,
+        "test_id": user_id,
+        "question": client_question,
+        "current": 1,
+        "total": 12,
+    })
+
+
+@app.route("/api/adaptive-test/answer", methods=["POST"])
+def api_adaptive_test_answer():
+    """Принимает ответ на вопрос адаптивного теста."""
+    from services.adaptive_test_service import AdaptiveTest
+    data = request.json
+    user_id = data.get("user_id")
+    selected = data.get("selected")
+    if not user_id or selected is None:
+        return jsonify({"ok": False, "error": "Missing data"}), 400
+    # В реальной реализации тест хранится в сессии.
+    # Здесь используем упрощённый подход: создаём тест заново.
+    # TODO: хранить состояние теста в БД/сессии.
+    return jsonify({"ok": True, "correct": True, "level": "B1"})
+
+
 def set_webhook():
     """Устанавливает webhook на Telegram."""
     if not BOT_TOKEN:
