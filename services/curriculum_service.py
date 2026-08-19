@@ -24,42 +24,55 @@ logger = logging.getLogger(__name__)
 CEFR_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"]
 
 # Стандартные модули для каждого уровня (fallback, если LLM недоступен)
+# Каждый модуль содержит TBLT-задачу (реальный сценарий)
 DEFAULT_MODULES = {
     "A1": [
-        {"title": "Greetings & Introductions", "description": "Learn to introduce yourself and greet others."},
-        {"title": "Everyday Objects", "description": "Vocabulary for common objects and daily life."},
-        {"title": "Numbers & Time", "description": "Numbers, dates, and telling time."},
-        {"title": "Simple Present", "description": "Talk about habits and routines."},
+        {"title": "Introductions", "description": "Introduce yourself, greet others, and ask basic questions.", "task": "Introduce yourself to a new classmate and ask them 3 questions."},
+        {"title": "Daily Routine", "description": "Talk about your daily activities and habits.", "task": "Describe your typical day to a friend."},
+        {"title": "Food & Drink", "description": "Order food, talk about meals, and express preferences.", "task": "Order a meal at a restaurant and ask about the menu."},
+        {"title": "Family & Friends", "description": "Describe your family and friends.", "task": "Show a photo of your family and describe each person."},
+        {"title": "Shopping", "description": "Ask about prices, sizes, and make purchases.", "task": "Buy a shirt at a clothing store, asking about size and price."},
+        {"title": "Travel", "description": "Ask for directions and talk about travel.", "task": "Ask a stranger for directions to the train station."},
     ],
     "A2": [
-        {"title": "Daily Routines", "description": "Describe your daily activities."},
-        {"title": "Food & Restaurants", "description": "Order food and talk about meals."},
-        {"title": "Past Simple", "description": "Talk about past events."},
-        {"title": "Travel & Directions", "description": "Ask for and give directions."},
+        {"title": "Hobbies", "description": "Talk about your hobbies and free time.", "task": "Invite a friend to do a hobby together and make plans."},
+        {"title": "Health", "description": "Describe symptoms and talk to a doctor.", "task": "Describe your symptoms to a doctor and get advice."},
+        {"title": "Work & Jobs", "description": "Talk about jobs, responsibilities, and workplaces.", "task": "Describe your job to someone and answer questions about it."},
+        {"title": "City Life", "description": "Describe your city and give directions.", "task": "Give a tourist directions to three places in your city."},
+        {"title": "Weather & Seasons", "description": "Talk about weather and seasons.", "task": "Describe the weather forecast for the week to a friend."},
+        {"title": "Past Experiences", "description": "Talk about past events and experiences.", "task": "Tell a friend about your last vacation."},
     ],
     "B1": [
-        {"title": "Present Perfect", "description": "Talk about experiences and recent events."},
-        {"title": "Work & Career", "description": "Discuss jobs, interviews, and workplace."},
-        {"title": "Health & Body", "description": "Talk about health, symptoms, and doctors."},
-        {"title": "Future Forms", "description": "Express plans, predictions, and intentions."},
+        {"title": "Education", "description": "Discuss education, courses, and learning.", "task": "Recommend a course to a friend and explain why."},
+        {"title": "Technology", "description": "Discuss technology and its impact.", "task": "Explain how to use a new app to someone."},
+        {"title": "Environment", "description": "Discuss environmental issues and solutions.", "task": "Propose a plan to reduce waste in your community."},
+        {"title": "Culture & Traditions", "description": "Discuss cultural differences and traditions.", "task": "Describe a traditional celebration from your country."},
+        {"title": "Future Plans", "description": "Express plans, predictions, and intentions.", "task": "Describe your plans for the next 5 years."},
+        {"title": "Opinions & Arguments", "description": "Express and defend opinions.", "task": "Argue for or against a topic in a debate."},
     ],
     "B2": [
-        {"title": "Conditionals", "description": "Express hypothetical situations."},
-        {"title": "Business English", "description": "Meetings, negotiations, and presentations."},
-        {"title": "Passive Voice", "description": "Use passive constructions in writing and speech."},
-        {"title": "Debates & Opinions", "description": "Express and defend opinions."},
+        {"title": "Conditionals", "description": "Express hypothetical situations.", "task": "Discuss what you would do if you won the lottery."},
+        {"title": "Business English", "description": "Meetings, negotiations, and presentations.", "task": "Present a product idea to a group of investors."},
+        {"title": "Passive Voice", "description": "Use passive constructions in writing and speech.", "task": "Write a news report about a recent event."},
+        {"title": "Debates & Opinions", "description": "Express and defend opinions.", "task": "Participate in a structured debate on a controversial topic."},
+        {"title": "Society & Politics", "description": "Discuss social and political issues.", "task": "Explain a current social issue and propose solutions."},
+        {"title": "Science & Innovation", "description": "Discuss scientific discoveries and innovations.", "task": "Explain a recent scientific breakthrough to a non-expert."},
     ],
     "C1": [
-        {"title": "Advanced Grammar", "description": "Complex structures: inversion, cleft sentences."},
-        {"title": "Academic Writing", "description": "Essays, reports, and formal writing."},
-        {"title": "Idioms & Phrasal Verbs", "description": "Natural, idiomatic English."},
-        {"title": "Persuasion & Rhetoric", "description": "Persuasive speaking and writing."},
+        {"title": "Advanced Grammar", "description": "Complex structures: inversion, cleft sentences.", "task": "Write a formal letter using advanced structures."},
+        {"title": "Academic Writing", "description": "Essays, reports, and formal writing.", "task": "Write a 300-word academic essay on a given topic."},
+        {"title": "Idioms & Phrasal Verbs", "description": "Natural, idiomatic English.", "task": "Tell a story using at least 5 idioms."},
+        {"title": "Persuasion & Rhetoric", "description": "Persuasive speaking and writing.", "task": "Deliver a persuasive speech on a topic of your choice."},
+        {"title": "Professional Communication", "description": "Effective communication in professional settings.", "task": "Conduct a job interview simulation."},
+        {"title": "Critical Thinking", "description": "Analyze arguments and evaluate evidence.", "task": "Analyze a news article and identify bias."},
     ],
     "C2": [
-        {"title": "Nuance & Register", "description": "Fine distinctions in meaning and style."},
-        {"title": "Professional Fluency", "description": "Near-native professional communication."},
-        {"title": "Literary English", "description": "Understanding and using literary devices."},
-        {"title": "Mastery Projects", "description": "Complex, real-world language projects."},
+        {"title": "Nuance & Register", "description": "Fine distinctions in meaning and style.", "task": "Rewrite a text in three different registers."},
+        {"title": "Professional Fluency", "description": "Near-native professional communication.", "task": "Lead a complex business negotiation."},
+        {"title": "Literary English", "description": "Understanding and using literary devices.", "task": "Write a short story using literary techniques."},
+        {"title": "Mastery Projects", "description": "Complex, real-world language projects.", "task": "Produce a professional presentation on a complex topic."},
+        {"title": "Stylistic Variation", "description": "Adapt language to different styles and contexts.", "task": "Write the same message in formal, informal, and academic styles."},
+        {"title": "Expert Discourse", "description": "Engage in expert-level discussions.", "task": "Participate in a panel discussion on a specialized topic."},
     ],
 }
 
@@ -88,7 +101,7 @@ def ensure_modules_for_level(level):
     defaults = DEFAULT_MODULES.get(level, [])
     created = []
     for i, mod in enumerate(defaults):
-        module_id = create_module(level, mod["title"], mod["description"], i)
+        module_id = create_module(level, mod["title"], mod["description"], i, mod.get("task"))
         created.append({"id": module_id, "level": level, **mod, "order_index": i})
     logger.info(f"Created {len(created)} modules for level {level}")
     return created
@@ -111,12 +124,112 @@ def get_curriculum(user_id, level):
             "level": mod["level"],
             "title": mod["title"],
             "description": mod["description"],
+            "task": mod.get("task"),
             "order_index": mod["order_index"],
             "lessons_count": len(mod_lessons),
             "completed_count": completed,
             "progress": round((completed / len(mod_lessons)) * 100) if mod_lessons else 0,
         })
     return result
+
+
+def get_module_detail(user_id, module_id):
+    """Возвращает детальную информацию о модуле с уроками."""
+    module = get_module(module_id)
+    if not module:
+        return None
+    lessons = get_lessons(user_id, module_id)
+    # Если уроков нет, генерируем базовые
+    if not lessons:
+        lessons = _fallback_lessons(user_id, module_id, module["level"], module["title"])
+    lesson_list = []
+    for lesson in lessons:
+        lesson_list.append({
+            "id": lesson["id"],
+            "title": lesson["title"],
+            "type": lesson["lesson_type"],
+            "completed": lesson["completed"],
+            "score": lesson["score"],
+        })
+    return {
+        "id": module["id"],
+        "level": module["level"],
+        "title": module["title"],
+        "description": module["description"],
+        "task": module.get("task"),
+        "order_index": module["order_index"],
+        "lessons": lesson_list,
+    }
+
+
+def get_next_lesson(user_id, level):
+    """Возвращает следующий незавершённый урок (принцип i+1)."""
+    modules = ensure_modules_for_level(level)
+    for mod in modules:
+        lessons = get_lessons(user_id, mod["id"])
+        if not lessons:
+            lessons = _fallback_lessons(user_id, mod["id"], level, mod["title"])
+        for lesson in lessons:
+            if not lesson["completed"]:
+                return {
+                    "module_id": mod["id"],
+                    "module_title": mod["title"],
+                    "lesson_id": lesson["id"],
+                    "title": lesson["title"],
+                    "type": lesson["lesson_type"],
+                }
+    return None
+
+
+def get_daily_practice(user_id, level):
+    """Возвращает набор быстрых упражнений для Daily Practice (5-10 минут)."""
+    modules = ensure_modules_for_level(level)
+    if not modules:
+        return None
+    # Берём первый незавершённый модуль или первый модуль
+    target_module = None
+    for mod in modules:
+        lessons = get_lessons(user_id, mod["id"])
+        if not lessons:
+            lessons = _fallback_lessons(user_id, mod["id"], level, mod["title"])
+        if any(not l["completed"] for l in lessons):
+            target_module = mod
+            break
+    if not target_module:
+        target_module = modules[0]
+
+    lessons = get_lessons(user_id, target_module["id"])
+    if not lessons:
+        lessons = _fallback_lessons(user_id, target_module["id"], level, target_module["title"])
+
+    # Выбираем 3-4 упражнения из разных типов уроков
+    practice = []
+    seen_types = set()
+    for lesson in lessons:
+        if lesson["lesson_type"] not in seen_types and len(practice) < 4:
+            seen_types.add(lesson["lesson_type"])
+            practice.append({
+                "lesson_id": lesson["id"],
+                "title": lesson["title"],
+                "type": lesson["lesson_type"],
+                "content": _parse_content(lesson["content"]),
+            })
+    return {
+        "module_id": target_module["id"],
+        "module_title": target_module["title"],
+        "level": level,
+        "practice": practice,
+    }
+
+
+def _parse_content(content):
+    """Парсит содержимое урока."""
+    if isinstance(content, str):
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return {"explanation": content}
+    return content or {}
 
 
 def generate_module_lessons(user_id, module_id, level, topic):
@@ -177,7 +290,7 @@ def _fallback_lessons(user_id, module_id, level, topic):
             "task": f"Complete a real-world task related to {topic}.",
         }
         lesson_id = create_lesson(user_id, module_id, lesson_type, f"{topic} — {lesson_type.capitalize()}", content)
-        created.append({"id": lesson_id, "title": f"{topic} — {lesson_type.capitalize()}", "type": lesson_type, "content": content})
+        created.append({"id": lesson_id, "title": f"{topic} — {lesson_type.capitalize()}", "lesson_type": lesson_type, "content": content, "completed": False, "score": None})
     return created
 
 

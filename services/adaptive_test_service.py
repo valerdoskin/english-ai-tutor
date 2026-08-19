@@ -3,62 +3,82 @@ adaptive_test_service.py — адаптивный тест определени�
 
 Реализует адаптивный алгоритм: сложность вопросов подстраивается
 под ответы пользователя (как в Duolingo English Test).
+Поддерживает сохранение состояния теста между запросами.
 """
 import asyncio
 import json
 import logging
 
 from services.llm_service import call_llm
+from services.question_bank import get_questions_for_level, get_all_questions
 from utils.json_parser import extract_json
 
 logger = logging.getLogger(__name__)
 
 CEFR_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"]
 
-# Статические вопросы для каждого уровня (fallback)
-STATIC_QUESTIONS = {
-    "A1": [
-        {"question": "Choose the correct sentence:", "options": ["She go to school.", "She goes to school.", "She going to school.", "She gone to school."], "answer": 1},
-        {"question": "Complete: 'I ___ a book right now.'", "options": ["read", "am reading", "reads", "reading"], "answer": 1},
-        {"question": "What is the plural of 'child'?", "options": ["childs", "children", "childes", "childrens"], "answer": 1},
-    ],
-    "A2": [
-        {"question": "Choose the correct form: 'If it rains, we ___ at home.'", "options": ["stay", "will stay", "stayed", "would stay"], "answer": 1},
-        {"question": "Complete: 'She has lived here ___ 2010.'", "options": ["for", "since", "from", "during"], "answer": 1},
-        {"question": "Choose the correct sentence:", "options": ["I am agree with you.", "I agree with you.", "I agreeing with you.", "I agreed with you."], "answer": 1},
-    ],
-    "B1": [
-        {"question": "Choose the correct sentence:", "options": ["He suggested me to go.", "He suggested that I go.", "He suggested me going.", "He suggested to go."], "answer": 1},
-        {"question": "Complete: 'By the time we arrived, the movie ___ .'", "options": ["started", "had started", "has started", "was starting"], "answer": 1},
-        {"question": "Choose the correct form: 'I'm looking forward ___ you.'", "options": ["to see", "to seeing", "seeing", "see"], "answer": 1},
-    ],
-    "B2": [
-        {"question": "Choose the correct form: 'I wish I ___ more time.'", "options": ["have", "had", "would have", "will have"], "answer": 1},
-        {"question": "Complete: 'The report ___ by the end of the week.'", "options": ["will be completed", "will complete", "will have completed", "completes"], "answer": 0},
-        {"question": "Choose the correct sentence:", "options": ["She is used to work late.", "She is used to working late.", "She used to working late.", "She uses to work late."], "answer": 1},
-    ],
-    "C1": [
-        {"question": "Choose the correct sentence:", "options": ["Despite of the rain, we went out.", "Despite the rain, we went out.", "Despite the rain, we went out.", "Despite the rain, we went out."], "answer": 1},
-        {"question": "Complete: 'Had I known about the meeting, I ___ attended.'", "options": ["would have", "will have", "would", "have"], "answer": 0},
-        {"question": "Choose the correct form: 'The manager insisted that the report ___ immediately.'", "options": ["is submitted", "be submitted", "was submitted", "submitted"], "answer": 1},
-    ],
-    "C2": [
-        {"question": "Choose the correct sentence:", "options": ["The data suggests a clear trend.", "The data suggest a clear trend.", "The data suggesting a clear trend.", "The data are suggesting a clear trend."], "answer": 0},
-        {"question": "Complete: 'Not only ___ the exam, but she also got the highest score.'", "options": ["she passed", "did she pass", "she did pass", "passed she"], "answer": 1},
-        {"question": "Choose the correct form: 'Were it not for your help, we ___ the project.'", "options": ["wouldn't finish", "wouldn't have finished", "didn't finish", "haven't finished"], "answer": 1},
-    ],
+# Описания уровней для отчёта
+CEFR_DESCRIPTIONS = {
+    "A1": {
+        "name": "Beginner (Начальный)",
+        "description": "Понимаете и используете базовые фразы и выражения. Можете представиться и задать простые вопросы.",
+    },
+    "A2": {
+        "name": "Elementary (Элементарный)",
+        "description": "Понимаете простые предложения и часто используемые выражения. Можете общаться в простых ситуациях.",
+    },
+    "B1": {
+        "name": "Intermediate (Средний)",
+        "description": "Понимаете основные идеи на знакомые темы. Можете справиться с большинством ситуаций в путешествиях.",
+    },
+    "B2": {
+        "name": "Upper-Intermediate (Выше среднего)",
+        "description": "Понимаете сложные тексты и можете общаться с носителями без напряжения. Можете аргументировать свою точку зрения.",
+    },
+    "C1": {
+        "name": "Advanced (Продвинутый)",
+        "description": "Понимаете сложные тексты и можете выражать мысли бегло и спонтанно. Используете язык гибко и эффективно.",
+    },
+    "C2": {
+        "name": "Proficient (Свободное владение)",
+        "description": "Понимаете практически всё услышанное и прочитанное. Выражаетесь спонтанно, точно и бегло.",
+    },
 }
 
 
 class AdaptiveTest:
-    """Адаптивный тест уровня CEFR."""
+    """Адаптивный тест уровня CEFR с сохранением состояния."""
 
-    def __init__(self, max_questions=12):
+    def __init__(self, max_questions=15, state=None):
         self.max_questions = max_questions
-        self.current_level_idx = 2  # Начинаем с B1
-        self.questions = []
-        self.answers = []
-        self.level_scores = {lvl: {"correct": 0, "total": 0} for lvl in CEFR_ORDER}
+        if state:
+            self._load_state(state)
+        else:
+            self.current_level_idx = 2  # Начинаем с B1
+            self.questions = []
+            self.answers = []
+            self.level_scores = {lvl: {"correct": 0, "total": 0} for lvl in CEFR_ORDER}
+            self.skill_scores = {"grammar": {"correct": 0, "total": 0},
+                                 "vocabulary": {"correct": 0, "total": 0}}
+
+    def _load_state(self, state):
+        """Загружает состояние теста из словаря."""
+        self.current_level_idx = state.get("current_level_idx", 2)
+        self.questions = state.get("questions", [])
+        self.answers = state.get("answers", [])
+        self.level_scores = state.get("level_scores", {lvl: {"correct": 0, "total": 0} for lvl in CEFR_ORDER})
+        self.skill_scores = state.get("skill_scores", {"grammar": {"correct": 0, "total": 0},
+                                                       "vocabulary": {"correct": 0, "total": 0}})
+
+    def to_state(self):
+        """Возвращает состояние теста для сохранения."""
+        return {
+            "current_level_idx": self.current_level_idx,
+            "questions": self.questions,
+            "answers": self.answers,
+            "level_scores": self.level_scores,
+            "skill_scores": self.skill_scores,
+        }
 
     def get_next_question(self):
         """Возвращает следующий вопрос, подстраивая сложность."""
@@ -83,10 +103,16 @@ class AdaptiveTest:
         question = self.questions[-1]
         correct = (selected == question["answer"])
         level = question["level"]
+        skill = question.get("skill", "grammar")
 
         self.level_scores[level]["total"] += 1
+        self.skill_scores[skill]["total"] += 1
         if correct:
             self.level_scores[level]["correct"] += 1
+            self.skill_scores[skill]["correct"] += 1
+
+        self.answers.append({"question": question["question"], "selected": selected,
+                             "correct": correct, "level": level, "skill": skill})
 
         # Адаптация сложности
         if correct:
@@ -94,11 +120,10 @@ class AdaptiveTest:
         else:
             self.current_level_idx = max(self.current_level_idx - 1, 0)
 
-        return {"correct": correct, "level": level}
+        return {"correct": correct, "level": level, "skill": skill}
 
     def get_result(self):
-        """Возвращает результат теста."""
-        # Определяем уровень по последним ответам (взвешенно)
+        """Возвращает детальный результат теста."""
         # Считаем процент правильных по каждому уровню
         level_scores = {}
         for lvl in CEFR_ORDER:
@@ -118,26 +143,48 @@ class AdaptiveTest:
         total = sum(s["total"] for s in self.level_scores.values())
         score_pct = round((total_correct / total) * 100) if total else 0
 
+        # Детальный отчёт по навыкам
+        skill_report = {}
+        for skill, s in self.skill_scores.items():
+            if s["total"] > 0:
+                skill_report[skill] = {
+                    "correct": s["correct"],
+                    "total": s["total"],
+                    "percent": round((s["correct"] / s["total"]) * 100),
+                }
+            else:
+                skill_report[skill] = {"correct": 0, "total": 0, "percent": 0}
+
+        # Рекомендации на основе слабых мест
+        recommendations = []
+        if skill_report.get("grammar", {}).get("percent", 100) < 60:
+            recommendations.append("Уделите больше внимания грамматике: повторите времена и конструкции.")
+        if skill_report.get("vocabulary", {}).get("percent", 100) < 60:
+            recommendations.append("Расширяйте словарный запас: учите по 5-10 новых слов в день.")
+        if not recommendations:
+            recommendations.append("Отличный результат! Продолжайте в том же темпе.")
+
         return {
             "level": result_level,
+            "level_name": CEFR_DESCRIPTIONS[result_level]["name"],
+            "description": CEFR_DESCRIPTIONS[result_level]["description"],
             "score": score_pct,
             "correct": total_correct,
             "total": total,
             "level_scores": level_scores,
+            "skill_report": skill_report,
+            "recommendations": recommendations,
         }
 
     def _get_question_for_level(self, level):
-        """Возвращает вопрос для уровня (из статических или LLM)."""
-        questions = STATIC_QUESTIONS.get(level, [])
-        # Убираем уже использованные вопросы
-        used = {q["question"] for q in self.questions}
-        available = [q for q in questions if q["question"] not in used]
-        if available:
-            return dict(available[0])
+        """Возвращает вопрос для уровня из банка вопросов."""
+        questions = get_questions_for_level(level, exclude=self.questions)
+        if questions:
+            return dict(questions[0])
         return None
 
 
-def generate_adaptive_test_questions(user_id, num_questions=12):
+def generate_adaptive_test_questions(user_id, num_questions=15):
     """Генерирует вопросы для адаптивного теста через LLM."""
     prompt = f"""Generate {num_questions} English level test questions for a CEFR placement test.
 The questions should range from A1 (easy) to C2 (hard), covering grammar and vocabulary.
@@ -148,11 +195,13 @@ Return ONLY valid JSON in this exact format:
       "question": "question text",
       "options": ["option1", "option2", "option3", "option4"],
       "answer": 0,
-      "level": "A1"
+      "level": "A1",
+      "skill": "grammar"
     }}
   ]
 }}
 The "answer" field is the index (0-3) of the correct option.
+The "skill" field is either "grammar" or "vocabulary".
 Make sure exactly one option is correct for each question.
 Return ONLY the JSON, no other text."""
 
@@ -163,10 +212,7 @@ Return ONLY the JSON, no other text."""
             return data["questions"]
     # Fallback на статические вопросы
     logger.warning("LLM недоступен, используем статические вопросы")
-    questions = []
-    for lvl in CEFR_ORDER:
-        questions.extend(STATIC_QUESTIONS.get(lvl, []))
-    return questions[:num_questions]
+    return get_all_questions()[:num_questions]
 
 
 def evaluate_test(questions):
@@ -174,12 +220,17 @@ def evaluate_test(questions):
     total = len(questions)
     correct = 0
     level_scores = {}
+    skill_scores = {"grammar": {"correct": 0, "total": 0}, "vocabulary": {"correct": 0, "total": 0}}
 
     for q in questions:
         if q.get("selected") == q.get("answer"):
             correct += 1
             lvl = q.get("level", "A1")
             level_scores[lvl] = level_scores.get(lvl, 0) + 1
+        skill = q.get("skill", "grammar")
+        skill_scores[skill]["total"] += 1
+        if q.get("selected") == q.get("answer"):
+            skill_scores[skill]["correct"] += 1
 
     score_pct = round((correct / total) * 100) if total else 0
 
@@ -196,10 +247,24 @@ def evaluate_test(questions):
     else:
         level = "A1"
 
+    skill_report = {}
+    for skill, s in skill_scores.items():
+        if s["total"] > 0:
+            skill_report[skill] = {
+                "correct": s["correct"],
+                "total": s["total"],
+                "percent": round((s["correct"] / s["total"]) * 100),
+            }
+        else:
+            skill_report[skill] = {"correct": 0, "total": 0, "percent": 0}
+
     return {
         "level": level,
+        "level_name": CEFR_DESCRIPTIONS[level]["name"],
+        "description": CEFR_DESCRIPTIONS[level]["description"],
         "score": score_pct,
         "correct": correct,
         "total": total,
         "level_scores": level_scores,
+        "skill_report": skill_report,
     }

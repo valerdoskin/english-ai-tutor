@@ -67,6 +67,7 @@ def init_db():
             level TEXT,
             title TEXT,
             description TEXT,
+            task TEXT,
             order_index INTEGER
         )
     ''')
@@ -104,6 +105,15 @@ def init_db():
             completed BOOLEAN DEFAULT 0
         )
     ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS test_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            state TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
 
     # Миграции для существующих БД
     _migrations = [
@@ -113,6 +123,7 @@ def init_db():
         ("words", "ease_factor", "REAL DEFAULT 2.5"),
         ("words", "repetitions", "INTEGER DEFAULT 0"),
         ("errors", "error_type", "TEXT DEFAULT 'grammar'"),
+        ("modules", "task", "TEXT"),
     ]
     for table, col, col_def in _migrations:
         try:
@@ -263,12 +274,12 @@ def get_module(module_id):
     conn.close()
     return dict(row) if row else None
 
-def create_module(level, title, description, order_index):
+def create_module(level, title, description, order_index, task=None):
     """Создаёт модуль."""
     conn = get_connection()
     c = conn.cursor()
-    c.execute("INSERT INTO modules (level, title, description, order_index) VALUES (?, ?, ?, ?)",
-              (level, title, description, order_index))
+    c.execute("INSERT INTO modules (level, title, description, task, order_index) VALUES (?, ?, ?, ?, ?)",
+              (level, title, description, task, order_index))
     conn.commit()
     module_id = c.lastrowid
     conn.close()
@@ -384,5 +395,43 @@ def update_daily_goal_progress(user_id, goal_type, amount=1, goal_date=None):
     else:
         c.execute("INSERT INTO daily_goals (user_id, goal_date, goal_type, target, progress, completed) VALUES (?, ?, ?, 1, ?, ?)",
                   (user_id, goal_date, goal_type, amount, 1 if amount >= 1 else 0))
+    conn.commit()
+    conn.close()
+
+# === Test sessions (адаптивный тест) ===
+
+def save_test_session(user_id, state):
+    """Сохраняет состояние адаптивного теста."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id FROM test_sessions WHERE user_id = ?", (user_id,))
+    existing = c.fetchone()
+    if existing:
+        c.execute("UPDATE test_sessions SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                  (json.dumps(state), existing["id"]))
+    else:
+        c.execute("INSERT INTO test_sessions (user_id, state) VALUES (?, ?)",
+                  (user_id, json.dumps(state)))
+    conn.commit()
+    conn.close()
+
+
+def get_test_session(user_id):
+    """Возвращает состояние адаптивного теста или None."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT state FROM test_sessions WHERE user_id = ?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    if row and row["state"]:
+        return json.loads(row["state"])
+    return None
+
+
+def delete_test_session(user_id):
+    """Удаляет состояние адаптивного теста."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM test_sessions WHERE user_id = ?", (user_id,))
     conn.commit()
     conn.close()
