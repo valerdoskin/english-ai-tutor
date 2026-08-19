@@ -690,6 +690,211 @@ def api_daily_practice():
     return jsonify({"ok": True, "practice": practice})
 
 
+@app.route("/api/grammar/lesson", methods=["GET"])
+def api_grammar_lesson():
+    """Возвращает урок грамматики для уровня."""
+    from services.grammar_lesson_service import generate_grammar_lesson, get_grammar_topics
+    from database import get_user_data
+    user_id = request.args.get("user_id", type=int)
+    level = request.args.get("level")
+    topic = request.args.get("topic")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    if not level:
+        level, _, _ = get_user_data(user_id)
+    lesson = generate_grammar_lesson(level, topic)
+    return jsonify({"ok": True, "level": level, "lesson": lesson})
+
+
+@app.route("/api/grammar/topics", methods=["GET"])
+def api_grammar_topics():
+    """Возвращает список грамматических тем для уровня."""
+    from services.grammar_lesson_service import get_grammar_topics
+    from database import get_user_data
+    user_id = request.args.get("user_id", type=int)
+    level = request.args.get("level")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    if not level:
+        level, _, _ = get_user_data(user_id)
+    topics = get_grammar_topics(level)
+    return jsonify({"ok": True, "level": level, "topics": topics})
+
+
+@app.route("/api/grammar/check", methods=["POST"])
+def api_grammar_check():
+    """Проверяет ответ на упражнение по грамматике."""
+    from services.grammar_lesson_service import check_answer
+    data = request.json
+    exercise = data.get("exercise")
+    answer = data.get("answer")
+    if not exercise or answer is None:
+        return jsonify({"ok": False, "error": "Missing data"}), 400
+    correct = check_answer(exercise, answer)
+    return jsonify({"ok": True, "correct": correct})
+
+
+@app.route("/api/grammar/recall", methods=["GET"])
+def api_grammar_recall():
+    """Возвращает вопрос для recall (повторение)."""
+    from services.grammar_lesson_service import generate_recall_question
+    from database import get_user_data
+    user_id = request.args.get("user_id", type=int)
+    level = request.args.get("level")
+    topic = request.args.get("topic")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    if not level:
+        level, _, _ = get_user_data(user_id)
+    recall = generate_recall_question(level, topic)
+    return jsonify({"ok": True, "recall": recall})
+
+
+@app.route("/api/listening/lesson", methods=["GET"])
+def api_listening_lesson():
+    """Возвращает урок аудирования для уровня."""
+    from services.listening_lesson_service import generate_listening_lesson, get_listening_topics
+    from database import get_user_data
+    user_id = request.args.get("user_id", type=int)
+    level = request.args.get("level")
+    topic = request.args.get("topic")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    if not level:
+        level, _, _ = get_user_data(user_id)
+    lesson = generate_listening_lesson(level, topic)
+    return jsonify({"ok": True, "level": level, "lesson": lesson})
+
+
+@app.route("/api/listening/audio", methods=["GET"])
+def api_listening_audio():
+    """Возвращает урок аудирования с аудиофайлом."""
+    from services.listening_lesson_service import generate_listening_audio
+    from database import get_user_data
+    user_id = request.args.get("user_id", type=int)
+    level = request.args.get("level")
+    topic = request.args.get("topic")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    if not level:
+        level, _, _ = get_user_data(user_id)
+    lesson = generate_listening_audio(level, topic)
+    return jsonify({"ok": True, "level": level, "lesson": lesson})
+
+
+@app.route("/api/listening/topics", methods=["GET"])
+def api_listening_topics():
+    """Возвращает темы для аудирования по уровню."""
+    from services.listening_lesson_service import get_listening_topics
+    from database import get_user_data
+    user_id = request.args.get("user_id", type=int)
+    level = request.args.get("level")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    if not level:
+        level, _, _ = get_user_data(user_id)
+    topics = get_listening_topics(level)
+    return jsonify({"ok": True, "level": level, "topics": topics})
+
+
+@app.route("/api/listening/check", methods=["POST"])
+def api_listening_check():
+    """Проверяет ответ на вопрос по аудированию."""
+    from services.listening_lesson_service import check_listening_answer
+    data = request.json
+    question = data.get("question")
+    answer = data.get("answer")
+    if not question or answer is None:
+        return jsonify({"ok": False, "error": "Missing data"}), 400
+    correct = check_listening_answer(question, answer)
+    return jsonify({"ok": True, "correct": correct})
+
+
+@app.route("/api/speaking/dialogue", methods=["POST"])
+def api_speaking_dialogue():
+    """Обрабатывает текстовое сообщение в диалоге с ИИ-репетитором."""
+    from services.speaking_service import generate_dialogue_reply
+    from database import get_user_data
+    data = request.json
+    user_id = data.get("user_id")
+    text = data.get("text", "")
+    history = data.get("history", [])
+    scenario = data.get("scenario")
+    silent_period = data.get("silent_period", False)
+    if not user_id or not text:
+        return jsonify({"ok": False, "error": "Missing data"}), 400
+    level, _, _ = get_user_data(user_id)
+    if not level:
+        level = "A2"
+    result = generate_dialogue_reply(level, text, history, scenario, silent_period)
+    result["level"] = level
+    return jsonify({"ok": True, **result})
+
+
+@app.route("/api/speaking/roleplay", methods=["GET"])
+def api_speaking_roleplay():
+    """Возвращает сценарии ролевых игр для уровня."""
+    from services.speaking_service import get_role_play_scenarios
+    from database import get_user_data
+    user_id = request.args.get("user_id", type=int)
+    level = request.args.get("level")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    if not level:
+        level, _, _ = get_user_data(user_id)
+    scenarios = get_role_play_scenarios(level)
+    return jsonify({"ok": True, "level": level, "scenarios": scenarios})
+
+
+@app.route("/api/speaking/pictures", methods=["GET"])
+def api_speaking_pictures():
+    """Возвращает темы для описания картинок."""
+    from services.speaking_service import get_picture_topics
+    from database import get_user_data
+    user_id = request.args.get("user_id", type=int)
+    level = request.args.get("level")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    if not level:
+        level, _, _ = get_user_data(user_id)
+    topics = get_picture_topics(level)
+    return jsonify({"ok": True, "level": level, "topics": topics})
+
+
+@app.route("/api/speaking/picture", methods=["GET"])
+def api_speaking_picture():
+    """Возвращает задание на описание картинки."""
+    from services.speaking_service import generate_picture_description
+    from database import get_user_data
+    user_id = request.args.get("user_id", type=int)
+    level = request.args.get("level")
+    topic_id = request.args.get("topic_id")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Missing user_id"}), 400
+    if not level:
+        level, _, _ = get_user_data(user_id)
+    topic = generate_picture_description(level, topic_id)
+    return jsonify({"ok": True, "level": level, "topic": topic})
+
+
+@app.route("/api/speaking/picture/evaluate", methods=["POST"])
+def api_speaking_picture_evaluate():
+    """Оценивает описание картинки."""
+    from services.speaking_service import evaluate_picture_description
+    from database import get_user_data
+    data = request.json
+    user_id = data.get("user_id")
+    description = data.get("description", "")
+    topic = data.get("topic", {})
+    if not user_id or not description:
+        return jsonify({"ok": False, "error": "Missing data"}), 400
+    level, _, _ = get_user_data(user_id)
+    if not level:
+        level = "A2"
+    result = evaluate_picture_description(level, description, topic)
+    return jsonify({"ok": True, **result})
+
+
 @app.route("/api/achievements", methods=["GET"])
 def api_achievements():
     """Возвращает достижения пользователя."""

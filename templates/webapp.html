@@ -7,18 +7,20 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --bg: #0f172a;
-            --bg-card: #1e293b;
-            --bg-card-hover: #334155;
+            --bg: #0b1120;
+            --bg-card: #151d2e;
+            --bg-card-hover: #1e2a3f;
             --text: #f1f5f9;
-            --text-muted: #94a3b8;
+            --text-muted: #8b9bb4;
             --accent: #38bdf8;
-            --accent-dark: #0284c7;
-            --success: #4ade80;
+            --accent-2: #818cf8;
+            --success: #34d399;
             --warning: #fbbf24;
             --danger: #f87171;
-            --border: #334155;
+            --border: #243049;
             --radius: 16px;
+            --shadow: 0 4px 20px rgba(0,0,0,0.3);
+            --gradient: linear-gradient(135deg, #38bdf8, #818cf8);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -26,26 +28,80 @@
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
-            padding-bottom: 80px;
+            padding-bottom: 90px;
+            -webkit-tap-highlight-color: transparent;
         }
-        .header {
-            background: linear-gradient(135deg, var(--accent-dark), var(--accent));
-            padding: 24px 20px;
-            text-align: center;
-            border-radius: 0 0 24px 24px;
-        }
-        .header h1 { font-size: 22px; font-weight: 700; }
-        .header p { font-size: 14px; opacity: 0.9; margin-top: 4px; }
-        .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes confetti { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(-100px) rotate(720deg); opacity: 0; } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+        .view { animation: fadeInUp 0.4s ease; }
         .card {
             background: var(--bg-card);
             border-radius: var(--radius);
             padding: 20px;
             margin-bottom: 12px;
             border: 1px solid var(--border);
+            transition: all 0.3s;
+            animation: fadeInUp 0.4s ease;
         }
+        .card:hover { border-color: var(--accent); box-shadow: var(--shadow); }
         .card h3 { font-size: 16px; margin-bottom: 8px; }
         .card p { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+
+        .header {
+            background: var(--gradient);
+            padding: 28px 20px 40px;
+            text-align: center;
+            border-radius: 0 0 32px 32px;
+            position: relative;
+            overflow: hidden;
+        }
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 50%);
+            animation: float 6s ease-in-out infinite;
+        }
+        .header h1 { font-size: 24px; font-weight: 800; position: relative; z-index: 1; }
+        .header p { font-size: 14px; opacity: 0.9; margin-top: 4px; position: relative; z-index: 1; }
+        .header .level-chip {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 700;
+            margin-top: 12px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            z-index: 1;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin: -20px 16px 16px;
+            position: relative;
+            z-index: 2;
+            box-shadow: var(--shadow);
+        }
+        .stat-item { text-align: center; flex: 1; }
+        .stat-item .value { font-size: 20px; font-weight: 800; color: var(--accent); }
+        .stat-item .label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
         .btn {
             display: block;
             width: 100%;
@@ -59,34 +115,39 @@
             margin-bottom: 10px;
             text-align: center;
         }
-        .btn-primary { background: var(--accent); color: #0f172a; }
-        .btn-primary:hover { background: var(--accent-dark); color: white; }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--gradient); color: white; }
+        .btn-primary:hover { box-shadow: 0 4px 20px rgba(56,189,248,0.4); }
         .btn-secondary { background: var(--bg-card-hover); color: var(--text); }
         .btn-secondary:hover { background: var(--border); }
-        .btn-success { background: var(--success); color: #0f172a; }
-        .btn-danger { background: var(--danger); color: #0f172a; }
+        .btn-success { background: linear-gradient(135deg, #34d399, #10b981); color: white; }
+        .btn-danger { background: linear-gradient(135deg, #f87171, #ef4444); color: white; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
         .level-badge {
             display: inline-block;
             padding: 4px 12px;
             border-radius: 20px;
             font-size: 13px;
             font-weight: 700;
-            background: var(--accent);
-            color: #0f172a;
+            background: var(--gradient);
+            color: white;
         }
         .level-badge.muted { background: var(--bg-card-hover); color: var(--text-muted); }
+
         .nav {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            background: var(--bg-card);
+            background: rgba(21, 29, 46, 0.95);
+            backdrop-filter: blur(20px);
             border-top: 1px solid var(--border);
             display: flex;
             justify-content: space-around;
             padding: 8px 0;
             padding-bottom: calc(8px + env(safe-area-inset-bottom));
+            z-index: 100;
         }
         .nav-item {
             flex: 1;
@@ -95,17 +156,27 @@
             cursor: pointer;
             color: var(--text-muted);
             font-size: 11px;
-            border-radius: 8px;
-            transition: all 0.2s;
+            border-radius: 12px;
+            transition: all 0.3s;
+            position: relative;
         }
-        .nav-item.active { color: var(--accent); background: rgba(56, 189, 248, 0.1); }
-        .nav-item .icon { font-size: 22px; display: block; margin-bottom: 2px; }
+        .nav-item.active { color: var(--accent); }
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 3px;
+            background: var(--gradient);
+            border-radius: 0 0 4px 4px;
+        }
+        .nav-item .icon { font-size: 22px; display: block; margin-bottom: 2px; transition: transform 0.3s; }
+        .nav-item.active .icon { transform: scale(1.2); }
+
         .hidden { display: none; }
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: var(--text-muted);
-        }
+        .loading { text-align: center; padding: 40px; color: var(--text-muted); }
         .spinner {
             width: 40px;
             height: 40px;
@@ -115,7 +186,7 @@
             animation: spin 1s linear infinite;
             margin: 0 auto 16px;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+
         .input, textarea, select {
             width: 100%;
             padding: 12px;
@@ -125,8 +196,11 @@
             color: var(--text);
             font-size: 15px;
             margin-bottom: 12px;
+            transition: border-color 0.3s;
         }
+        .input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
         textarea { min-height: 80px; resize: vertical; }
+
         .option {
             display: block;
             width: 100%;
@@ -141,10 +215,11 @@
             text-align: left;
             transition: all 0.2s;
         }
-        .option:hover { background: var(--bg-card-hover); }
+        .option:hover { background: var(--bg-card-hover); border-color: var(--accent); }
         .option.selected { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
-        .option.correct { border-color: var(--success); background: rgba(74, 222, 128, 0.1); }
+        .option.correct { border-color: var(--success); background: rgba(52, 211, 153, 0.1); }
         .option.wrong { border-color: var(--danger); background: rgba(248, 113, 113, 0.1); }
+
         .progress-bar {
             height: 8px;
             background: var(--border);
@@ -154,10 +229,11 @@
         }
         .progress-fill {
             height: 100%;
-            background: var(--accent);
+            background: var(--gradient);
             border-radius: 4px;
-            transition: width 0.3s;
+            transition: width 0.5s ease;
         }
+
         .result-box {
             background: var(--bg);
             border: 1px solid var(--border);
@@ -169,35 +245,39 @@
         }
         .correction { color: var(--success); font-weight: 600; }
         .error-text { color: var(--danger); }
+
         .tag {
             display: inline-block;
-            padding: 2px 8px;
-            border-radius: 6px;
+            padding: 4px 10px;
+            border-radius: 8px;
             font-size: 12px;
             margin-right: 4px;
+            margin-bottom: 4px;
+            font-weight: 600;
         }
         .tag.grammar { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
         .tag.vocab { background: rgba(251, 191, 36, 0.2); color: var(--warning); }
-        .tag.pron { background: rgba(74, 222, 128, 0.2); color: var(--success); }
-        .audio-player {
-            width: 100%;
-            margin: 12px 0;
-        }
+        .tag.pron { background: rgba(52, 211, 153, 0.2); color: var(--success); }
+        .tag.listening { background: rgba(129, 140, 248, 0.2); color: var(--accent-2); }
+        .tag.speaking { background: rgba(52, 211, 153, 0.2); color: var(--success); }
+
+        .audio-player { width: 100%; margin: 12px 0; }
         .mic-btn {
             width: 64px;
             height: 64px;
             border-radius: 50%;
             border: none;
-            background: var(--accent);
-            color: #0f172a;
+            background: var(--gradient);
+            color: white;
             font-size: 28px;
             cursor: pointer;
             margin: 16px auto;
             display: block;
             transition: all 0.2s;
+            box-shadow: 0 4px 20px rgba(56,189,248,0.3);
         }
         .mic-btn.recording { background: var(--danger); animation: pulse 1s infinite; }
-        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
         .chat-bubble {
             padding: 12px 16px;
             border-radius: 16px;
@@ -205,10 +285,12 @@
             max-width: 85%;
             font-size: 14px;
             line-height: 1.5;
+            animation: fadeInUp 0.3s ease;
         }
-        .chat-user { background: var(--accent); color: #0f172a; margin-left: auto; }
+        .chat-user { background: var(--gradient); color: white; margin-left: auto; }
         .chat-bot { background: var(--bg-card); border: 1px solid var(--border); }
         .chat-area { display: flex; flex-direction: column; }
+
         .toast {
             position: fixed;
             top: 16px;
@@ -221,79 +303,211 @@
             border-radius: 12px;
             font-size: 14px;
             z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: var(--shadow);
             display: none;
         }
         .toast.show { display: block; animation: fadeIn 0.3s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; } }
-        .section-title { font-size: 18px; font-weight: 700; margin: 16px 0 12px; }
+
+        .section-title { font-size: 20px; font-weight: 800; margin: 16px 0 12px; }
         .subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+        .module-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            animation: fadeInUp 0.4s ease;
+        }
+        .module-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow); }
+        .module-card .module-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+        .module-card .module-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+        .module-card .module-progress { font-size: 12px; color: var(--accent); font-weight: 600; }
+
+        .xp-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--gradient);
+            color: white;
+            padding: 20px 32px;
+            border-radius: 20px;
+            font-size: 24px;
+            font-weight: 800;
+            z-index: 1000;
+            animation: scaleIn 0.3s ease;
+            box-shadow: 0 8px 40px rgba(56,189,248,0.5);
+            pointer-events: none;
+        }
+
+        .confetti-piece {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            z-index: 999;
+            animation: confetti 2s ease-out forwards;
+            pointer-events: none;
+        }
+
+        .daily-card {
+            background: linear-gradient(135deg, rgba(56,189,248,0.1), rgba(129,140,248,0.1));
+            border: 1px solid var(--accent);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .daily-card:hover { box-shadow: 0 4px 20px rgba(56,189,248,0.2); transform: translateY(-2px); }
+        .daily-card .daily-title { font-size: 16px; font-weight: 700; color: var(--accent); }
+        .daily-card .daily-desc { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+        .skill-bar { display: flex; align-items: center; margin-bottom: 8px; }
+        .skill-bar .skill-name { width: 80px; font-size: 13px; color: var(--text-muted); }
+        .skill-bar .skill-track { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin: 0 8px; }
+        .skill-bar .skill-fill { height: 100%; background: var(--gradient); border-radius: 4px; transition: width 0.5s ease; }
+        .skill-bar .skill-value { width: 40px; font-size: 13px; font-weight: 700; color: var(--accent); text-align: right; }
+
+        .achievement-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .achievement-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .achievement-item .icon { font-size: 24px; display: block; margin-bottom: 4px; }
+        .achievement-item .name { font-size: 11px; color: var(--text-muted); }
+        .achievement-item.locked { opacity: 0.4; }
+
+        .tab-bar { display: flex; background: var(--bg-card); border-radius: 12px; padding: 4px; margin-bottom: 16px; border: 1px solid var(--border); }
+        .tab { flex: 1; text-align: center; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-muted); transition: all 0.3s; }
+        .tab.active { background: var(--gradient); color: white; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>🎯 English AI Tutor</h1>
         <p id="userLevel">Your personal English teacher</p>
+        <div class="level-chip" id="levelChip">Level: A2</div>
     </div>
 
-    <div class="container" id="app">
-        <!-- Главная -->
+    <div class="stats-bar" id="statsBar">
+        <div class="stat-item">
+            <div class="value" id="statXp">0</div>
+            <div class="label">XP</div>
+        </div>
+        <div class="stat-item">
+            <div class="value" id="statStreak">0</div>
+            <div class="label">🔥 Streak</div>
+        </div>
+        <div class="stat-item">
+            <div class="value" id="statRank">Bronze</div>
+            <div class="label">Rank</div>
+        </div>
+        <div class="stat-item">
+            <div class="value" id="statLessons">0</div>
+            <div class="label">Lessons</div>
+        </div>
+    </div>
+
+    <div class="container" id="app" style="max-width:480px;margin:0 auto;padding:16px">
         <div id="view-home" class="view">
-            <div class="card">
-                <h3>👋 Welcome!</h3>
-                <p>Choose what you'd like to practice today.</p>
+            <div class="daily-card" onclick="showView('daily')">
+                <div class="daily-title">⚡ Daily Practice</div>
+                <div class="daily-desc">Quick 5-10 min exercises to keep your streak alive</div>
             </div>
-            <button class="btn btn-primary" onclick="showView('test')">📝 Take Level Test</button>
-            <button class="btn btn-secondary" onclick="showView('lessons')">📚 AI Lessons</button>
-            <button class="btn btn-secondary" onclick="showView('podcasts')">🎧 Podcasts</button>
-            <button class="btn btn-secondary" onclick="showView('dialogue')">🎤 Voice Dialogue</button>
+            <div class="card" onclick="showView('lessons')" style="cursor:pointer">
+                <h3>📚 Learning Path</h3>
+                <p>Structured lessons for your level. Follow the path to fluency.</p>
+                <div class="progress-bar" style="margin-top:12px"><div class="progress-fill" id="pathProgress" style="width:0%"></div></div>
+                <p style="font-size:12px;color:var(--accent);font-weight:600" id="pathProgressText">0% complete</p>
+            </div>
+            <div class="card" onclick="showView('grammar')" style="cursor:pointer">
+                <h3>📖 Grammar Lessons</h3>
+                <p>Interactive grammar exercises with instant feedback.</p>
+            </div>
+            <div class="card" onclick="showView('listening')" style="cursor:pointer">
+                <h3>🎧 Listening Practice</h3>
+                <p>Audio lessons with comprehension questions.</p>
+            </div>
+            <div class="card" onclick="showView('speaking')" style="cursor:pointer">
+                <h3>🎤 Speaking Practice</h3>
+                <p>Role-plays, picture descriptions, and voice dialogue.</p>
+            </div>
+            <div class="card" onclick="showView('test')" style="cursor:pointer">
+                <h3>📝 Level Test</h3>
+                <p>Take the adaptive test to determine your CEFR level.</p>
+            </div>
+            <div class="card" onclick="showView('achievements')" style="cursor:pointer">
+                <h3>🏆 Achievements</h3>
+                <p>Track your badges and milestones.</p>
+            </div>
         </div>
 
-        <!-- Тест уровня -->
         <div id="view-test" class="view hidden">
             <div class="section-title">📝 Level Test</div>
             <div class="subtitle">Answer the questions to determine your English level (CEFR A1-C2)</div>
             <div id="test-content"></div>
         </div>
 
-        <!-- Уроки -->
         <div id="view-lessons" class="view hidden">
-            <div class="section-title">📚 AI Lessons</div>
-            <div class="subtitle">Personalized lessons based on your level</div>
+            <div class="section-title">📚 Learning Path</div>
+            <div class="subtitle">Your personalized curriculum</div>
             <div id="lessons-content"></div>
         </div>
 
-        <!-- Подкасты -->
-        <div id="view-podcasts" class="view hidden">
-            <div class="section-title">🎧 Podcasts</div>
-            <div class="subtitle">AI-generated audio podcasts on topics you love</div>
-            <div id="podcasts-content"></div>
+        <div id="view-grammar" class="view hidden">
+            <div class="section-title">📖 Grammar Lessons</div>
+            <div class="subtitle">Interactive grammar practice</div>
+            <div id="grammar-content"></div>
         </div>
 
-        <!-- Аудио диалог -->
-        <div id="view-dialogue" class="view hidden">
-            <div class="section-title">🎤 Voice Dialogue</div>
-            <div class="subtitle">Speak and get corrections in real-time</div>
-            <div id="dialogue-content"></div>
+        <div id="view-listening" class="view hidden">
+            <div class="section-title">🎧 Listening Practice</div>
+            <div class="subtitle">Improve your listening comprehension</div>
+            <div id="listening-content"></div>
+        </div>
+
+        <div id="view-speaking" class="view hidden">
+            <div class="section-title">🎤 Speaking Practice</div>
+            <div class="subtitle">Practice real conversations</div>
+            <div id="speaking-content"></div>
+        </div>
+
+        <div id="view-daily" class="view hidden">
+            <div class="section-title">⚡ Daily Practice</div>
+            <div class="subtitle">Quick exercises to keep your streak alive</div>
+            <div id="daily-content"></div>
+        </div>
+
+        <div id="view-achievements" class="view hidden">
+            <div class="section-title">🏆 Achievements</div>
+            <div class="subtitle">Your badges and milestones</div>
+            <div id="achievements-content"></div>
         </div>
     </div>
 
-    <!-- Нижняя навигация -->
     <div class="nav">
         <div class="nav-item active" data-view="home" onclick="showView('home')">
             <span class="icon">🏠</span>Home
         </div>
+        <div class="nav-item" data-view="lessons" onclick="showView('lessons')">
+            <span class="icon">📚</span>Learn
+        </div>
+        <div class="nav-item" data-view="speaking" onclick="showView('speaking')">
+            <span class="icon">🎤</span>Speak
+        </div>
         <div class="nav-item" data-view="test" onclick="showView('test')">
             <span class="icon">📝</span>Test
         </div>
-        <div class="nav-item" data-view="lessons" onclick="showView('lessons')">
-            <span class="icon">📚</span>Lessons
-        </div>
-        <div class="nav-item" data-view="podcasts" onclick="showView('podcasts')">
-            <span class="icon">🎧</span>Podcasts
-        </div>
-        <div class="nav-item" data-view="dialogue" onclick="showView('dialogue')">
-            <span class="icon">🎤</span>Voice
+        <div class="nav-item" data-view="achievements" onclick="showView('achievements')">
+            <span class="icon">🏆</span>Badges
         </div>
     </div>
 
